@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sistema de Patrimônio</title>
+<style>
+ body { font-family: Arial, sans-serif; background: #f2f2f2; margin: 0; padding: 20px; }
+ h1 { text-align: center; }
+ .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
+ input, textarea, select { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ccc; border-radius: 6px; }
+ button { padding: 10px 15px; border: none; background: #0066ff; color: white; border-radius: 6px; cursor: pointer; }
+ button:hover { opacity: .9; }
+ table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+ th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
+ .actions button { margin-right: 5px; }
+ .btn-delete { background: red; }
+ .btn-edit { background: orange; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Sistema de Patrimônio</h1>
+
+<h3>Adicionar / Editar Equipamento</h3>
+
+<input id="numPatrimonio" placeholder="Número do Patrimônio" />
+<input id="equipamento" placeholder="Equipamento" />
+<input id="setor" placeholder="Setor" />
+<input id="modelo" placeholder="Modelo" />
+<input id="configuracao" placeholder="Configuração" />
+<textarea id="historico" placeholder="Histórico"></textarea>
+
+<button onclick="addItem()" class="btn-add">Adicionar Equipamento</button>
+<button id="cancelBtn" style="display:none; background:#555" onclick="cancelEdit()">Cancelar</button>
+
+<h3>Itens Cadastrados</h3>
+<table>
+<thead>
+ <tr>
+   <th>Patrimônio</th>
+   <th>Equipamento</th>
+   <th>Setor</th>
+   <th>Modelo</th>
+   <th>Ações</th>
+ </tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbxxOxUQDmeLxgyMf-5Nb7neeIGDzE4XEdSDmJVcyye6AVJNqHY5LB2-sWX6hfhaDlRc/exec";
+let items = [];
+let editingIndex = -1;
+
+async function loadData() {
+    const response = await fetch(API_URL);
+    const data = await response.json();
+
+    items = data.slice(1).map((row, index) => ({
+        numPatrimonio: row[0],
+        equipamento: row[1],
+        setor: row[2],
+        modelo: row[3],
+        configuracao: row[4],
+        historico: row[5],
+        dataRegistro: row[6],
+        indexPlanilha: index + 1
+    }));
+
+    renderTable();
+}
+
+function renderTable() {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
+
+    items.forEach((item, i) => {
+        tbody.innerHTML += `
+        <tr>
+            <td>${item.numPatrimonio}</td>
+            <td>${item.equipamento}</td>
+            <td>${item.setor}</td>
+            <td>${item.modelo}</td>
+            <td class="actions">
+                <button class="btn-edit" onclick="editItem(${i})">Editar</button>
+                <button class="btn-delete" onclick="deleteItem(${i})">Excluir</button>
+            </td>
+        </tr>`;
+    });
+}
+
+async function addItem() {
+    const numPatrimonio = document.getElementById("numPatrimonio").value.trim();
+    const equipamento = document.getElementById("equipamento").value.trim();
+    const setor = document.getElementById("setor").value.trim();
+    const modelo = document.getElementById("modelo").value.trim();
+    const configuracao = document.getElementById("configuracao").value.trim();
+    const historico = document.getElementById("historico").value.trim();
+
+    if (!numPatrimonio || !equipamento) {
+        alert("Preencha número e equipamento");
+        return;
+    }
+
+    const item = { numPatrimonio, equipamento, setor, modelo, configuracao, historico };
+
+    let action = "add";
+    let rowIndex = null;
+
+    if (editingIndex >= 0) {
+        action = "edit";
+        rowIndex = items[editingIndex].indexPlanilha;
+    }
+
+    await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action, row: rowIndex, ...item })
+    });
+
+    editingIndex = -1;
+    clearForm();
+    loadData();
+    document.querySelector(".btn-add").textContent = "Adicionar Equipamento";
+}
+
+function editItem(index) {
+    const item = items[index];
+
+    document.getElementById("numPatrimonio").value = item.numPatrimonio;
+    document.getElementById("equipamento").value = item.equipamento;
+    document.getElementById("setor").value = item.setor;
+    document.getElementById("modelo").value = item.modelo;
+    document.getElementById("configuracao").value = item.configuracao;
+    document.getElementById("historico").value = item.historico;
+
+    editingIndex = index;
+    document.querySelector(".btn-add").textContent = "Salvar Alterações";
+    document.getElementById("cancelBtn").style.display = "inline-block";
+}
+
+function cancelEdit() {
+    editingIndex = -1;
+    clearForm();
+    document.querySelector(".btn-add").textContent = "Adicionar Equipamento";
+    document.getElementById("cancelBtn").style.display = "none";
+}
+
+function clearForm() {
+    document.getElementById("numPatrimonio").value = "";
+    document.getElementById("equipamento").value = "";
+    document.getElementById("setor").value = "";
+    document.getElementById("modelo").value = "";
+    document.getElementById("configuracao").value = "";
+    document.getElementById("historico").value = "";
+}
+
+async function deleteItem(index) {
+    if (!confirm("Deseja excluir?")) return;
+
+    const row = items[index].indexPlanilha;
+
+    await fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "delete", row })
+    });
+
+    loadData();
+}
+
+loadData();
+</script>
+</body>
+</html>
