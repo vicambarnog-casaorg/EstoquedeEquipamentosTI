@@ -7,8 +7,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>Sistema de Patrimônio - Completo</title>
 
-  <!-- Manifest embutido com start_url corrigido -->
-  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2lzdGVtYSBkZSBQYXRyaW1vbmkiLCJzaG9ydF9uYW1lIjoiUGF0cmltw6FuaW8iLCJzdGFydF91cmwiOiIvIiwidmVyc2lvbiI6IjEuMCIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiaWNvbnMiOltdfQ==">
+  <!-- Manifest embutido SEM start_url para evitar erro -->
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2lzdGVtYSBkZSBQYXRyaW1vbmkiLCJzaG9ydF9uYW1lIjoiUGF0cmltw6FuaW8iLCJ2ZXJzaW9uIjoiMS4wIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJpY29ucyI6W119">
 
   <style>
     :root{
@@ -57,7 +57,7 @@
     .btn-edit{background:#ffc107;color:#111}
     .btn-del{background:var(--danger);color:#fff}
     .status{padding:8px;border-radius:8px;margin-bottom:12px}
-    .hide{display:none}
+    .hide{display:none !important}
     @media(max-width:980px){main{grid-template-columns:1fr;}}
     /* modal */
     .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:1500}
@@ -195,8 +195,8 @@
     </main>
   </div>
 
-  <!-- Modal: edit history - CORRIGIDO: usando inert em vez de aria-hidden -->
-  <div id="modalHistory" class="modal hide" inert>
+  <!-- Modal: edit history - CORRIGIDO: inicialmente oculto -->
+  <div id="modalHistory" class="modal hide">
     <div class="content">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h3>📜 Histórico</h3>
@@ -409,8 +409,6 @@
         cameraModal.classList.remove('hide');
         cameraVideo.play();
         btnCapture.focus();
-        // show controls area
-        document.getElementById('cameraModal').classList.remove('hide');
       } catch (err) {
         alert('Erro ao acessar câmera: ' + (err.message || err));
       }
@@ -424,7 +422,7 @@
       }
       cameraVideo.pause();
       cameraVideo.srcObject = null;
-      document.getElementById('cameraModal').classList.add('hide');
+      cameraModal.classList.add('hide');
     }
 
     btnCapture.addEventListener('click', async () => {
@@ -631,17 +629,15 @@
 
     /* ================= HISTÓRICO ================= */
     let historyEditingId = null;
+    
     function openHistory(id) {
       const res = window.storage.get('patrimonio:' + id);
       if (!res || !res.value) return alert('Item não encontrado');
+      
       const item = JSON.parse(res.value);
       historyEditingId = id;
       
-      // Remover inert e mostrar modal
-      modalHistory.removeAttribute("inert");
-      modalHistory.classList.remove('hide');
-      
-      // preencher historico
+      // Preencher histórico
       historyContent.innerHTML = '';
       if (item.history && item.history.length) {
         item.history.forEach(h => {
@@ -656,16 +652,40 @@
         historyContent.innerHTML = '<div class="small muted">Nenhuma manutenção registrada</div>';
       }
       
-      // Focar na data de manutenção
-      maintenanceDate.focus();
+      // Resetar e mostrar modal
+      maintenanceForm.reset();
+      modalHistory.classList.remove('hide');
+      modalHistory.style.display = 'flex';
+      
+      // Focar na data
+      setTimeout(() => {
+        maintenanceDate.focus();
+        maintenanceDate.value = new Date().toISOString().split('T')[0];
+      }, 100);
     }
 
-    closeHistory.addEventListener('click', ()=> {
-      // Adicionar inert e esconder modal
-      modalHistory.setAttribute("inert", "");
+    closeHistory.addEventListener('click', closeHistoryModal);
+
+    // Função para fechar modal
+    function closeHistoryModal() {
       modalHistory.classList.add('hide');
+      modalHistory.style.display = 'none';
       historyEditingId = null;
       maintenanceForm.reset();
+    }
+
+    // Fechar modal ao clicar fora
+    modalHistory.addEventListener('click', (e) => {
+      if (e.target === modalHistory) {
+        closeHistoryModal();
+      }
+    });
+
+    // Fechar modal com ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modalHistory.classList.contains('hide')) {
+        closeHistoryModal();
+      }
     });
 
     maintenanceForm.addEventListener('submit', async (e)=> {
@@ -703,10 +723,19 @@
     }
 
     /* ================= BOOT ================= */
-    // inicializa UI
-    showLogin();
-    renderFormDefault();
-    loadData();
+    // Garantir que o modal está fechado ao iniciar
+    window.addEventListener('DOMContentLoaded', () => {
+      // Forçar fechamento do modal se por algum motivo estiver aberto
+      if (!modalHistory.classList.contains('hide')) {
+        modalHistory.classList.add('hide');
+        modalHistory.style.display = 'none';
+      }
+      
+      // Inicializar UI
+      showLogin();
+      renderFormDefault();
+      loadData();
+    });
 
     /* ================= PWA: service worker simples (via blob) ================= */
     if ('serviceWorker' in navigator) {
