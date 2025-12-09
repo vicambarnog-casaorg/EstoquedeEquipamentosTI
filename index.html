@@ -7,8 +7,8 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>Sistema de Patrimônio - Completo</title>
 
-  <!-- Manifest embutido com start_url relativo -->
-  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2lzdGVtYSBkZSBQYXRyaW1vbmkiLCJzaG9ydF9uYW1lIjoiUGF0cmltw6FuaW8iLCJzdGFydF91cmwiOiIuIiwidmVyc2lvbiI6IjEuMCIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiaWNvbnMiOltdfQ==">
+  <!-- Manifest embutido com start_url corrigido -->
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2lzdGVtYSBkZSBQYXRyaW1vbmkiLCJzaG9ydF9uYW1lIjoiUGF0cmltw6FuaW8iLCJzdGFydF91cmwiOiIvIiwidmVyc2lvbiI6IjEuMCIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiaWNvbnMiOltdfQ==">
 
   <style>
     :root{
@@ -195,8 +195,8 @@
     </main>
   </div>
 
-  <!-- Modal: edit history -->
-  <div id="modalHistory" class="modal hide" aria-hidden="true">
+  <!-- Modal: edit history - CORRIGIDO: usando inert em vez de aria-hidden -->
+  <div id="modalHistory" class="modal hide" inert>
     <div class="content">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h3>📜 Histórico</h3>
@@ -636,6 +636,11 @@
       if (!res || !res.value) return alert('Item não encontrado');
       const item = JSON.parse(res.value);
       historyEditingId = id;
+      
+      // Remover inert e mostrar modal
+      modalHistory.removeAttribute("inert");
+      modalHistory.classList.remove('hide');
+      
       // preencher historico
       historyContent.innerHTML = '';
       if (item.history && item.history.length) {
@@ -650,11 +655,14 @@
       } else {
         historyContent.innerHTML = '<div class="small muted">Nenhuma manutenção registrada</div>';
       }
-      modalHistory.classList.remove('hide');
-      modalHistory.setAttribute('aria-hidden','false');
+      
+      // Focar na data de manutenção
+      maintenanceDate.focus();
     }
 
     closeHistory.addEventListener('click', ()=> {
+      // Adicionar inert e esconder modal
+      modalHistory.setAttribute("inert", "");
       modalHistory.classList.add('hide');
       historyEditingId = null;
       maintenanceForm.reset();
