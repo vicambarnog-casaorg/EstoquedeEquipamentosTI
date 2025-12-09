@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#667eea">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Sistema de Patrimônio - Completo</title>
+  <title>Sistema de Patrimônio - Sincronizado</title>
 
-  <!-- Manifest embutido SEM start_url para evitar erro -->
+  <!-- Manifest simplificado -->
   <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2lzdGVtYSBkZSBQYXRyaW1vbmkiLCJzaG9ydF9uYW1lIjoiUGF0cmltw6FuaW8iLCJ2ZXJzaW9uIjoiMS4wIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJpY29ucyI6W119">
 
   <style>
@@ -37,6 +37,7 @@
     .btn{padding:8px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:600}
     .btn-ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.12)}
     .btn-logout{background:rgba(255,255,255,0.12);color:#fff}
+    .btn-sync{background:rgba(255,255,255,0.15);color:#fff}
     main{padding:20px;display:grid;grid-template-columns:380px 1fr;gap:18px}
     .card{background:var(--card);padding:16px;border-radius:10px;box-shadow:0 6px 18px rgba(18,24,40,0.04)}
     .form-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -58,6 +59,7 @@
     .btn-del{background:var(--danger);color:#fff}
     .status{padding:8px;border-radius:8px;margin-bottom:12px}
     .hide{display:none !important}
+    .sync-status{font-size:12px;background:rgba(255,255,255,0.1);padding:4px 8px;border-radius:4px}
     @media(max-width:980px){main{grid-template-columns:1fr;}}
     /* modal */
     .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:1500}
@@ -70,9 +72,12 @@
 <body>
   <div class="app" id="app">
     <header>
-      <h1>📋 Sistema de Patrimônio - Completo</h1>
+      <h1>📋 Sistema de Patrimônio - Sincronizado</h1>
       <div class="controls" id="headerControls">
+        <div id="syncStatus" class="sync-status hide">🔄 Sincronizando...</div>
         <div id="currentUserBox" class="muted small hide">Conectado como <strong id="currentUser"></strong></div>
+        <button class="btn btn-sync" id="btnSyncUp" title="Enviar backup para nuvem">↑ Backup</button>
+        <button class="btn btn-sync" id="btnSyncDown" title="Restaurar da nuvem">↓ Restaurar</button>
         <button class="btn btn-ghost" id="btnOpenLogin">Entrar</button>
         <button class="btn btn-logout hide" id="btnLogout">Sair</button>
       </div>
@@ -104,6 +109,7 @@
 
         <div id="formArea" class="hide">
           <h3 id="formTitle">➕ Adicionar item</h3>
+          <div id="photoCounter" class="small" style="margin-bottom:8px">0/10 fotos</div>
           <form id="patrimonioForm">
             <div class="form-row">
               <div>
@@ -133,11 +139,11 @@
             </div>
 
             <div style="margin-top:12px">
-              <label>Fotos</label>
+              <label>Fotos (máx. 10 por item)</label>
               <div class="file-row">
                 <input id="fileInput" type="file" accept="image/*" multiple>
-                <button type="button" id="btnOpenCamera" class="btn" style="background:#17a2b8;color:#fff">Abrir câmera</button>
-                <div id="uploadStatus" class="small muted">Nenhuma foto enviada</div>
+                <button type="button" id="btnOpenCamera" class="btn" style="background:#17a2b8;color:#fff">Câmera</button>
+                <div id="uploadStatus" class="small muted">Nenhuma foto</div>
               </div>
               <div id="photoPreview" class="photo-preview"></div>
             </div>
@@ -156,7 +162,7 @@
           <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
           <div style="display:flex;gap:8px;margin-top:8px">
             <button id="btnCapture" class="btn" style="background:#28a745;color:#fff">Capturar</button>
-            <button id="btnCloseCamera" class="btn" style="background:#dc3545;color:#fff">Fechar câmera</button>
+            <button id="btnCloseCamera" class="btn" style="background:#dc3545;color:#fff">Fechar</button>
           </div>
         </div>
       </section>
@@ -166,7 +172,7 @@
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <h3>📋 Itens cadastrados</h3>
-            <div class="small muted">Total: <span id="totalCount">0</span></div>
+            <div class="small muted">Total: <span id="totalCount">0</span> | <span id="totalFotos">0 fotos</span></div>
           </div>
 
           <div id="tableWrap" style="margin-top:12px">
@@ -195,7 +201,7 @@
     </main>
   </div>
 
-  <!-- Modal: edit history - CORRIGIDO: inicialmente oculto -->
+  <!-- Modal: edit history -->
   <div id="modalHistory" class="modal hide">
     <div class="content">
       <div style="display:flex;justify-content:space-between;align-items:center">
@@ -219,20 +225,38 @@
     </div>
   </div>
 
+  <!-- Modal: Sincronização -->
+  <div id="modalSync" class="modal hide">
+    <div class="content">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h3>🔄 Sincronização</h3>
+        <button id="closeSync" class="btn">Fechar</button>
+      </div>
+      <div id="syncContent" style="margin-top:12px">
+        <div id="syncInfo" class="small"></div>
+        <div id="syncProgress" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     /* ================= CONFIGURAÇÕES ================= */
-    // Cloudinary unsigned preset (você já deixou como unsigned)
+    // Cloudinary - SEU CONFIG
     const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dwanrvvob/image/upload';
-    const UPLOAD_PRESET = 'EETI_fotos'; // conferir no painel: unsigned true
-
-    // Usuários simples (demo)
+    const UPLOAD_PRESET = 'EETI_fotos';
+    
+    // Configurações de otimização
+    const MAX_PHOTOS_PER_ITEM = 10;
+    const BACKUP_JSON_NAME = 'patrimonio_backup';
+    const BACKUP_FOLDER = 'EETI_backups'; // Pasta no Cloudinary para backups
+    
+    // Usuários simples
     const users = { admin: 'admin123' };
 
     /* ================= STORAGE (wrapper sobre localStorage) ================= */
     window.storage = {
       list(prefix = '') {
         const keys = Object.keys(localStorage).filter(k => k.startsWith(prefix));
-        // return similar shape used antes
         return { keys };
       },
       get(key) { return { value: localStorage.getItem(key) }; },
@@ -242,9 +266,10 @@
 
     /* ================= ESTADO ================= */
     let currentUser = null;
-    let tempPhotos = []; // urls temporárias armazenadas após upload
-    let editingId = null; // id do item em edição
+    let tempPhotos = [];
+    let editingId = null;
     let cameraStream = null;
+    let lastBackupUrl = null; // URL do último backup na nuvem
 
     /* ================= ELEMENTOS ================= */
     const app = document.getElementById('app');
@@ -254,12 +279,14 @@
     const btnLogout = document.getElementById('btnLogout');
     const currentUserBox = document.getElementById('currentUserBox');
     const currentUserSpan = document.getElementById('currentUser');
+    const syncStatus = document.getElementById('syncStatus');
 
     const formArea = document.getElementById('formArea');
     const patrimonioForm = document.getElementById('patrimonioForm');
     const btnSave = document.getElementById('btnSave');
     const btnCancel = document.getElementById('btnCancel');
     const btnNew = document.getElementById('btnNew');
+    const photoCounter = document.getElementById('photoCounter');
 
     const numeroPatrimonio = document.getElementById('numeroPatrimonio');
     const equipamento = document.getElementById('equipamento');
@@ -269,6 +296,7 @@
 
     const patrimonioTable = document.getElementById('patrimonioTable');
     const totalCount = document.getElementById('totalCount');
+    const totalFotos = document.getElementById('totalFotos');
     const viewBox = document.getElementById('viewBox');
 
     const fileInput = document.getElementById('fileInput');
@@ -289,11 +317,368 @@
     const maintenanceDescription = document.getElementById('maintenanceDescription');
     const closeHistory = document.getElementById('closeHistory');
 
+    // sync modal
+    const modalSync = document.getElementById('modalSync');
+    const syncContent = document.getElementById('syncContent');
+    const syncInfo = document.getElementById('syncInfo');
+    const syncProgress = document.getElementById('syncProgress');
+    const closeSync = document.getElementById('closeSync');
+    const btnSyncUp = document.getElementById('btnSyncUp');
+    const btnSyncDown = document.getElementById('btnSyncDown');
+
+    /* ================= FUNÇÃO DE UPLOAD SUPER OTIMIZADA ================= */
+    async function uploadToCloudinaryOtimizado(fileOrBlob, fileName = null, isBackup = false) {
+      const form = new FormData();
+      form.append('file', fileOrBlob);
+      form.append('upload_preset', UPLOAD_PRESET);
+      
+      if (isBackup) {
+        // Para backups JSON, manter original
+        form.append('resource_type', 'raw');
+        if (BACKUP_FOLDER) {
+          form.append('folder', BACKUP_FOLDER);
+        }
+        if (fileName) {
+          form.append('public_id', fileName);
+        }
+      } else {
+        // Para FOTOS - OTIMIZAÇÃO MÁXIMA (≈100KB)
+        form.append('quality', '60');           // 60% qualidade (ótimo para produtos)
+        form.append('fetch_format', 'auto');    // WebP quando possível
+        form.append('width', '1024');           // Largura máxima
+        form.append('height', '768');           // Altura máxima
+        form.append('crop', 'limit');           // Não distorcer
+        form.append('flags', 'progressive');    // JPEG progressivo
+        form.append('background', 'auto');      // Auto fundo para PNG
+      }
+      
+      if (!isBackup) {
+        uploadStatus.textContent = 'Otimizando e enviando...';
+      }
+      
+      try {
+        const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: form });
+        const data = await res.json();
+        
+        if (data.secure_url) {
+          if (!isBackup) {
+            // Para fotos, criar URL ainda mais otimizada
+            const urlOtimizada = data.secure_url.replace(
+              '/upload/', 
+              '/upload/q_auto:good,f_auto,w_800,c_scale/'
+            );
+            
+            const tamanhoKB = Math.round(data.bytes / 1024);
+            console.log(`✅ Foto otimizada: ${tamanhoKB}KB | URL: ${urlOtimizada.substring(0, 80)}...`);
+            uploadStatus.textContent = `Enviado (${tamanhoKB}KB)`;
+            setTimeout(() => uploadStatus.textContent = '', 2000);
+            return urlOtimizada;
+          } else {
+            // Para backup, URL normal
+            console.log(`✅ Backup salvo: ${data.secure_url}`);
+            return data.secure_url;
+          }
+        } else {
+          throw new Error('Upload falhou: ' + JSON.stringify(data));
+        }
+      } catch (err) {
+        if (!isBackup) {
+          uploadStatus.textContent = 'Erro no upload';
+        }
+        console.error('❌ Erro upload:', err);
+        throw err;
+      }
+    }
+
+    /* ================= BACKUP NA NUVEM ================= */
+    async function salvarBackupNaNuvem() {
+      if (!currentUser) {
+        alert('Faça login primeiro');
+        return;
+      }
+      
+      syncStatus.classList.remove('hide');
+      syncStatus.textContent = '🔄 Criando backup...';
+      
+      try {
+        // Coletar todos os itens
+        const result = window.storage.list('patrimonio:');
+        const keys = result.keys || [];
+        const allItems = [];
+        
+        for (const key of keys) {
+          const res = window.storage.get(key);
+          if (res && res.value) {
+            const item = JSON.parse(res.value);
+            allItems.push(item);
+          }
+        }
+        
+        if (allItems.length === 0) {
+          syncStatus.textContent = '⚠ Nenhum item para backup';
+          setTimeout(() => syncStatus.classList.add('hide'), 3000);
+          return;
+        }
+        
+        // Adicionar metadados
+        const backupData = {
+          timestamp: new Date().toISOString(),
+          user: currentUser,
+          totalItems: allItems.length,
+          totalPhotos: allItems.reduce((sum, item) => sum + (item.photos?.length || 0), 0),
+          items: allItems
+        };
+        
+        // Criar arquivo JSON
+        const jsonStr = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        
+        // Nome do arquivo com timestamp
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const fileName = `${BACKUP_JSON_NAME}_${timestamp}`;
+        
+        // Upload para Cloudinary
+        syncStatus.textContent = '🔄 Enviando para nuvem...';
+        lastBackupUrl = await uploadToCloudinaryOtimizado(blob, fileName, true);
+        
+        // Salvar URL localmente para referência futura
+        localStorage.setItem('last_backup_url', lastBackupUrl);
+        localStorage.setItem('last_backup_time', new Date().toISOString());
+        
+        // Calcular estatísticas
+        const stats = calcularEstatisticas();
+        
+        syncStatus.textContent = `✅ Backup criado! ${allItems.length} itens, ${stats.totalFotos} fotos`;
+        setTimeout(() => syncStatus.classList.add('hide'), 5000);
+        
+        mostrarModalSync(`
+          <div style="color: #28a745;">
+            <h4>✅ Backup concluído com sucesso!</h4>
+            <p><strong>${allItems.length}</strong> itens salvos na nuvem</p>
+            <p><strong>${stats.totalFotos}</strong> fotos otimizadas</p>
+            <p><strong>${new Date().toLocaleString('pt-BR')}</strong></p>
+            <p class="small">Espaço estimado: ${stats.estimativaMB.toFixed(1)}MB</p>
+            <p class="small">URL: <a href="${lastBackupUrl}" target="_blank">Ver backup</a></p>
+          </div>
+        `);
+        
+        return lastBackupUrl;
+        
+      } catch (error) {
+        syncStatus.textContent = '❌ Erro no backup';
+        console.error('Erro ao salvar backup:', error);
+        mostrarModalSync(`
+          <div style="color: #dc3545;">
+            <h4>❌ Erro no backup</h4>
+            <p>${error.message}</p>
+            <p class="small">Verifique sua conexão e tente novamente.</p>
+          </div>
+        `);
+        setTimeout(() => syncStatus.classList.add('hide'), 5000);
+      }
+    }
+
+    async function carregarBackupDaNuvem() {
+      if (!currentUser) {
+        alert('Faça login primeiro');
+        return;
+      }
+      
+      syncStatus.classList.remove('hide');
+      syncStatus.textContent = '🔄 Buscando backup...';
+      
+      try {
+        // Tentar usar URL salva localmente
+        let backupUrl = localStorage.getItem('last_backup_url');
+        
+        if (!backupUrl) {
+          // Se não tiver URL salva, pedir ao usuário
+          backupUrl = prompt('Cole a URL do backup (ou deixe em branco para usar o último conhecido):');
+          if (!backupUrl) {
+            syncStatus.textContent = '❌ URL não fornecida';
+            setTimeout(() => syncStatus.classList.add('hide'), 3000);
+            return;
+          }
+        }
+        
+        syncStatus.textContent = '🔄 Baixando backup...';
+        const response = await fetch(backupUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Erro HTTP: ${response.status}`);
+        }
+        
+        const backupData = await response.json();
+        
+        // Verificar estrutura
+        if (!backupData.items || !Array.isArray(backupData.items)) {
+          throw new Error('Formato de backup inválido');
+        }
+        
+        // Confirmar com usuário
+        const confirmar = confirm(
+          `Restaurar backup de ${backupData.timestamp}?\n` +
+          `${backupData.items.length} itens encontrados.\n` +
+          `Isso substituirá todos os dados atuais.`
+        );
+        
+        if (!confirmar) {
+          syncStatus.textContent = '❌ Restauração cancelada';
+          setTimeout(() => syncStatus.classList.add('hide'), 3000);
+          return;
+        }
+        
+        // Limpar localStorage atual
+        const result = window.storage.list('patrimonio:');
+        result.keys.forEach(key => window.storage.delete(key));
+        
+        // Salvar novos itens
+        let itensRestaurados = 0;
+        let fotosRestauradas = 0;
+        
+        for (const item of backupData.items) {
+          window.storage.set('patrimonio:' + item.id, JSON.stringify(item));
+          itensRestaurados++;
+          fotosRestauradas += (item.photos?.length || 0);
+        }
+        
+        // Atualizar UI
+        loadData();
+        
+        syncStatus.textContent = `✅ Restaurado! ${itensRestaurados} itens`;
+        setTimeout(() => syncStatus.classList.add('hide'), 5000);
+        
+        mostrarModalSync(`
+          <div style="color: #28a745;">
+            <h4>✅ Restauração concluída!</h4>
+            <p><strong>${itensRestaurados}</strong> itens restaurados</p>
+            <p><strong>${fotosRestauradas}</strong> fotos recuperadas</p>
+            <p><strong>${backupData.timestamp ? new Date(backupData.timestamp).toLocaleString('pt-BR') : 'Data desconhecida'}</strong></p>
+            <p class="small">Usuário original: ${backupData.user || 'Desconhecido'}</p>
+          </div>
+        `);
+        
+        return itensRestaurados;
+        
+      } catch (error) {
+        syncStatus.textContent = '❌ Erro na restauração';
+        console.error('Erro ao carregar backup:', error);
+        mostrarModalSync(`
+          <div style="color: #dc3545;">
+            <h4>❌ Erro na restauração</h4>
+            <p>${error.message}</p>
+            <p class="small">Verifique a URL e sua conexão.</p>
+          </div>
+        `);
+        setTimeout(() => syncStatus.classList.add('hide'), 5000);
+        return 0;
+      }
+    }
+
+    function calcularEstatisticas() {
+      const result = window.storage.list('patrimonio:');
+      const keys = result.keys || [];
+      let totalFotosCount = 0;
+      let totalItens = 0;
+      
+      for (const key of keys) {
+        const res = window.storage.get(key);
+        if (res && res.value) {
+          const item = JSON.parse(res.value);
+          totalItens++;
+          if (item.photos) {
+            totalFotosCount += item.photos.length;
+          }
+        }
+      }
+      
+      // Estimativa de armazenamento (100KB por foto otimizada)
+      const estimativaMB = (totalFotosCount * 100) / 1024;
+      const estimativaGB = estimativaMB / 1024;
+      
+      return {
+        totalItens,
+        totalFotos: totalFotosCount,
+        estimativaMB,
+        estimativaGB
+      };
+    }
+
+    function atualizarEstatisticasUI() {
+      const stats = calcularEstatisticas();
+      totalFotos.textContent = `${stats.totalFotos} fotos`;
+      
+      // Atualizar também no contador do header
+      const lastBackupTime = localStorage.getItem('last_backup_time');
+      if (lastBackupTime) {
+        const timeStr = new Date(lastBackupTime).toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        syncStatus.innerHTML = `📊 ${stats.totalItens} itens | 📷 ${stats.totalFotos} fotos | 🔄 ${timeStr}`;
+      }
+    }
+
+    function mostrarModalSync(content) {
+      syncInfo.innerHTML = content;
+      modalSync.classList.remove('hide');
+    }
+
+    /* ================= GESTÃO DE FOTOS ================= */
+    function addTempPhotoUrl(url) {
+      if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
+        alert(`⚠ Limite de ${MAX_PHOTOS_PER_ITEM} fotos por item atingido!`);
+        return false;
+      }
+      tempPhotos.push(url);
+      renderPhotoPreview();
+      return true;
+    }
+
+    function renderPhotoPreview() {
+      photoPreview.innerHTML = '';
+      photoCounter.textContent = `${tempPhotos.length}/${MAX_PHOTOS_PER_ITEM} fotos`;
+      
+      if (tempPhotos.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'small muted';
+        emptyMsg.textContent = 'Nenhuma foto adicionada';
+        emptyMsg.style.width = '100%';
+        photoPreview.appendChild(emptyMsg);
+        return;
+      }
+      
+      tempPhotos.forEach((url, idx) => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        
+        const img = document.createElement('img');
+        img.src = url;
+        img.loading = 'lazy';
+        
+        const btn = document.createElement('button');
+        btn.className = 'photo-remove';
+        btn.innerText = '×';
+        btn.title = 'Remover';
+        btn.addEventListener('click', ()=> {
+          tempPhotos.splice(idx, 1);
+          renderPhotoPreview();
+        });
+        
+        div.appendChild(img);
+        div.appendChild(btn);
+        photoPreview.appendChild(div);
+      });
+    }
+
     /* ================= AUTENTICAÇÃO ================= */
     function showLogin() {
       document.getElementById('loginBox').classList.remove('hide');
       formArea.classList.add('hide');
     }
+    
     function showAppUI() {
       document.getElementById('loginBox').classList.add('hide');
       formArea.classList.remove('hide');
@@ -301,6 +686,9 @@
       currentUserBox.classList.remove('hide');
       btnLogout.classList.remove('hide');
       btnOpenLogin.classList.add('hide');
+      
+      // Mostrar estatísticas iniciais
+      atualizarEstatisticasUI();
     }
 
     loginForm.addEventListener('submit', (e) => {
@@ -331,80 +719,44 @@
       showLogin();
     });
 
-    btnOpenLogin.addEventListener('click', ()=> {
-      // scroll to login
-      window.scrollTo({top:0,behavior:'smooth'});
-    });
-
-    /* ================= UPLOAD PARA CLOUDINARY ================= */
-    async function uploadToCloudinary(fileOrBlob) {
-      // retorna a url da imagem ou lança erro
-      const form = new FormData();
-      form.append('file', fileOrBlob);
-      form.append('upload_preset', UPLOAD_PRESET);
-      // pode adicionar folder: form.append('folder','Fotos EETI');
-      uploadStatus.textContent = 'Enviando...';
-      try {
-        const res = await fetch(CLOUDINARY_URL, { method: 'POST', body: form });
-        const data = await res.json();
-        if (data.secure_url) {
-          uploadStatus.textContent = 'Enviado';
-          setTimeout(()=> uploadStatus.textContent = '',1500);
-          return data.secure_url;
-        } else {
-          uploadStatus.textContent = 'Erro no upload';
-          console.error('Cloudinary response',data);
-          throw new Error('Upload falhou');
-        }
-      } catch (err) {
-        uploadStatus.textContent = 'Erro no upload';
-        console.error(err);
-        throw err;
-      }
-    }
-
-    function addTempPhotoUrl(url) {
-      tempPhotos.push(url);
-      renderPhotoPreview();
-    }
-
-    function renderPhotoPreview() {
-      photoPreview.innerHTML = '';
-      tempPhotos.forEach((url,idx) => {
-        const div = document.createElement('div');
-        div.className = 'item';
-        const img = document.createElement('img');
-        img.src = url;
-        const btn = document.createElement('button');
-        btn.className = 'photo-remove';
-        btn.innerText = '×';
-        btn.title = 'Remover';
-        btn.addEventListener('click', ()=> {
-          tempPhotos.splice(idx,1);
-          renderPhotoPreview();
-        });
-        div.appendChild(img);
-        div.appendChild(btn);
-        photoPreview.appendChild(div);
-      });
-    }
-
+    /* ================= UPLOAD DE FOTOS ================= */
     fileInput.addEventListener('change', async (e) => {
       const files = Array.from(e.target.files || []);
+      let uploaded = 0;
+      
       for (const f of files) {
+        if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
+          alert(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido!`);
+          break;
+        }
+        
         try {
-          const url = await uploadToCloudinary(f);
-          addTempPhotoUrl(url);
-        } catch (err) { console.error('upload error',err); }
+          const url = await uploadToCloudinaryOtimizado(f);
+          if (addTempPhotoUrl(url)) {
+            uploaded++;
+          }
+        } catch (err) { 
+          console.error('upload error', err);
+          alert(`Erro ao enviar foto: ${f.name}`);
+        }
       }
+      
       fileInput.value = '';
+      
+      if (uploaded > 0) {
+        uploadStatus.textContent = `+${uploaded} foto(s)`;
+        setTimeout(() => uploadStatus.textContent = '', 2000);
+      }
     });
 
     /* ================= CÂMERA ================= */
     btnOpenCamera.addEventListener('click', async () => {
       if (cameraStream) return;
       try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        cameraStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' }, 
+          audio: false 
+        });
         cameraVideo.srcObject = cameraStream;
         cameraModal.classList.remove('hide');
         cameraVideo.play();
@@ -427,23 +779,28 @@
 
     btnCapture.addEventListener('click', async () => {
       if (!cameraStream) return;
+      if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
+        alert(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido!`);
+        return;
+      }
+      
       const track = cameraStream.getVideoTracks()[0];
       const imageCapture = new ImageCapture(track);
+      
       try {
         const blob = await imageCapture.takePhoto();
-        // upload blob
-        const url = await uploadToCloudinary(blob);
+        const url = await uploadToCloudinaryOtimizado(blob);
         addTempPhotoUrl(url);
       } catch (err) {
-        // fallback capture via canvas
+        // fallback via canvas
         try {
           const canvas = document.createElement('canvas');
           canvas.width = cameraVideo.videoWidth;
           canvas.height = cameraVideo.videoHeight;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(cameraVideo,0,0,canvas.width,canvas.height);
-          const blob = await new Promise(res => canvas.toBlob(res,'image/jpeg',0.85));
-          const url = await uploadToCloudinary(blob);
+          ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.85));
+          const url = await uploadToCloudinaryOtimizado(blob);
           addTempPhotoUrl(url);
         } catch(e) {
           console.error(e);
@@ -453,10 +810,12 @@
     });
 
     /* ================= CRUD ITEMS ================= */
-    // salvar novo ou editar existente
     patrimonioForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (!currentUser) { alert('Faça login para continuar'); return; }
+      if (!currentUser) { 
+        alert('Faça login para continuar'); 
+        return; 
+      }
 
       const item = {
         id: editingId || Date.now().toString(),
@@ -466,30 +825,41 @@
         modelo: modelo.value.trim(),
         configuracao: configuracao.value.trim(),
         photos: [...tempPhotos],
-        history: [] // se novo item
+        history: [],
+        createdBy: currentUser,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
-      // se edição, preservar histórico
+      // Preservar histórico se edição
       const existing = window.storage.get('patrimonio:' + item.id);
       if (existing && existing.value) {
         try {
           const parsed = JSON.parse(existing.value);
           item.history = parsed.history || [];
+          item.createdBy = parsed.createdBy || currentUser;
+          item.createdAt = parsed.createdAt || new Date().toISOString();
         } catch(e){}
       }
 
       window.storage.set('patrimonio:' + item.id, JSON.stringify(item));
-      // reset
+      
+      // Reset form
       editingId = null;
       patrimonioForm.reset();
       tempPhotos = [];
       renderPhotoPreview();
       renderFormDefault();
+      
+      // Carregar dados e mostrar
       loadData();
       viewItem(item.id);
+      
+      // Mostrar confirmação
+      uploadStatus.textContent = '✅ Item salvo!';
+      setTimeout(() => uploadStatus.textContent = '', 2000);
     });
 
-    // cancelar edição
     btnCancel.addEventListener('click', ()=> {
       patrimonioForm.reset();
       editingId = null;
@@ -512,93 +882,148 @@
       const keys = result.keys || [];
       patrimonioTable.innerHTML = '';
       totalCount.textContent = keys.length;
+      
       if (keys.length === 0) {
         patrimonioTable.innerHTML = '<tr><td colspan="5" class="small muted">Nenhum item cadastrado</td></tr>';
+        atualizarEstatisticasUI();
         return;
       }
+      
+      // Ordenar por número de patrimônio
+      const items = [];
       for (const key of keys) {
         try {
           const res = window.storage.get(key);
           if (!res || !res.value) continue;
           const item = JSON.parse(res.value);
-          const tr = document.createElement('tr');
-
-          const tdNum = document.createElement('td'); tdNum.textContent = item.numeroPatrimonio || '-';
-          const tdEquip = document.createElement('td'); tdEquip.textContent = item.equipamento || '-';
-          const tdSetor = document.createElement('td'); tdSetor.textContent = item.setor || '-';
-          const tdPhotos = document.createElement('td'); tdPhotos.textContent = (item.photos && item.photos.length) ? item.photos.length + ' fotos' : '0';
-          const tdActions = document.createElement('td');
-
-          const btnView = document.createElement('button'); btnView.className = 'btn btn-view'; btnView.textContent = 'Ver';
-          btnView.addEventListener('click', ()=> viewItem(item.id));
-          const btnEdit = document.createElement('button'); btnEdit.className = 'btn btn-edit'; btnEdit.textContent = 'Editar';
-          btnEdit.addEventListener('click', ()=> editItem(item.id));
-          const btnHistory = document.createElement('button'); btnHistory.className = 'btn'; btnHistory.textContent = 'Histórico';
-          btnHistory.addEventListener('click', ()=> openHistory(item.id));
-          const btnDel = document.createElement('button'); btnDel.className = 'btn btn-del'; btnDel.textContent = 'Excluir';
-          btnDel.addEventListener('click', ()=> {
-            if (confirm('Excluir este item definitivamente?')) {
-              window.storage.delete('patrimonio:' + item.id);
-              loadData();
-              viewBox.innerHTML = '<div class="small muted">Item removido</div>';
-            }
-          });
-
-          tdActions.appendChild(btnView);
-          tdActions.appendChild(btnEdit);
-          tdActions.appendChild(btnHistory);
-          tdActions.appendChild(btnDel);
-
-          tr.appendChild(tdNum);
-          tr.appendChild(tdEquip);
-          tr.appendChild(tdSetor);
-          tr.appendChild(tdPhotos);
-          tr.appendChild(tdActions);
-
-          patrimonioTable.appendChild(tr);
-
+          items.push(item);
         } catch (err) {
           console.error('erro item', err);
         }
       }
+      
+      // Ordenar alfabeticamente por número de patrimônio
+      items.sort((a, b) => {
+        const numA = a.numeroPatrimonio || '';
+        const numB = b.numeroPatrimonio || '';
+        return numA.localeCompare(numB, undefined, {numeric: true, sensitivity: 'base'});
+      });
+      
+      // Renderizar tabela
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+
+        const tdNum = document.createElement('td'); 
+        tdNum.textContent = item.numeroPatrimonio || '-';
+        
+        const tdEquip = document.createElement('td'); 
+        tdEquip.textContent = item.equipamento || '-';
+        
+        const tdSetor = document.createElement('td'); 
+        tdSetor.textContent = item.setor || '-';
+        
+        const tdPhotos = document.createElement('td'); 
+        tdPhotos.textContent = (item.photos && item.photos.length) ? 
+          `${item.photos.length} 📷` : '0';
+        
+        const tdActions = document.createElement('td');
+        tdActions.className = 'actions';
+
+        const btnView = document.createElement('button'); 
+        btnView.className = 'btn btn-view'; 
+        btnView.textContent = '👁️ Ver';
+        btnView.addEventListener('click', ()=> viewItem(item.id));
+        
+        const btnEdit = document.createElement('button'); 
+        btnEdit.className = 'btn btn-edit'; 
+        btnEdit.textContent = '✏️ Editar';
+        btnEdit.addEventListener('click', ()=> editItem(item.id));
+        
+        const btnHistory = document.createElement('button'); 
+        btnHistory.className = 'btn'; 
+        btnHistory.textContent = '📜 Hist';
+        btnHistory.addEventListener('click', ()=> openHistory(item.id));
+        
+        const btnDel = document.createElement('button'); 
+        btnDel.className = 'btn btn-del'; 
+        btnDel.textContent = '🗑️ Excluir';
+        btnDel.addEventListener('click', ()=> {
+          if (confirm(`Excluir "${item.equipamento}" (${item.numeroPatrimonio})?`)) {
+            window.storage.delete('patrimonio:' + item.id);
+            loadData();
+            viewBox.innerHTML = '<div class="small muted">Item removido</div>';
+            atualizarEstatisticasUI();
+          }
+        });
+
+        tdActions.appendChild(btnView);
+        tdActions.appendChild(btnEdit);
+        tdActions.appendChild(btnHistory);
+        tdActions.appendChild(btnDel);
+
+        tr.appendChild(tdNum);
+        tr.appendChild(tdEquip);
+        tr.appendChild(tdSetor);
+        tr.appendChild(tdPhotos);
+        tr.appendChild(tdActions);
+
+        patrimonioTable.appendChild(tr);
+      });
+      
+      atualizarEstatisticasUI();
     }
 
     function viewItem(id) {
       try {
         const res = window.storage.get('patrimonio:' + id);
-        if (!res || !res.value) { viewBox.innerHTML = '<div class="small muted">Item não encontrado</div>'; return; }
+        if (!res || !res.value) { 
+          viewBox.innerHTML = '<div class="small muted">Item não encontrado</div>'; 
+          return; 
+        }
+        
         const item = JSON.parse(res.value);
         let html = `<div style="display:flex;gap:14px;align-items:flex-start">
                       <div style="flex:1">
-                        <p><strong>Nº</strong> ${escapeHtml(item.numeroPatrimonio)}</p>
-                        <p><strong>Equipamento</strong> ${escapeHtml(item.equipamento)}</p>
-                        <p><strong>Setor</strong> ${escapeHtml(item.setor)}</p>
-                        <p><strong>Modelo</strong> ${escapeHtml(item.modelo)}</p>
-                        <p><strong>Configuração</strong> ${escapeHtml(item.configuracao)}</p>
+                        <p><strong>Nº Patrimônio:</strong> ${escapeHtml(item.numeroPatrimonio)}</p>
+                        <p><strong>Equipamento:</strong> ${escapeHtml(item.equipamento)}</p>
+                        <p><strong>Setor:</strong> ${escapeHtml(item.setor)}</p>
+                        <p><strong>Modelo:</strong> ${escapeHtml(item.modelo || '-')}</p>
+                        <p><strong>Configuração:</strong> ${escapeHtml(item.configuracao || '-')}</p>
+                        <p class="small muted">Cadastrado por: ${escapeHtml(item.createdBy || 'admin')} em ${formatDate(item.createdAt)}</p>
                       </div>
                       <div style="width:260px">
-                        <strong>Fotos</strong>
+                        <strong>Fotos (${item.photos?.length || 0})</strong>
                         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">`;
+        
         if (item.photos && item.photos.length) {
-          item.photos.forEach(url => {
-            html += `<a href="${url}" target="_blank" style="display:block;width:80px;height:60px;border-radius:6px;overflow:hidden"><img src="${url}" style="width:100%;height:100%;object-fit:cover"></a>`;
+          item.photos.forEach((url, index) => {
+            html += `
+              <div style="position:relative">
+                <a href="${url}" target="_blank" style="display:block;width:80px;height:60px;border-radius:6px;overflow:hidden">
+                  <img src="${url}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
+                </a>
+                <div class="small" style="text-align:center">${index + 1}</div>
+              </div>`;
           });
         } else {
           html += `<div class="small muted">Sem fotos</div>`;
         }
+        
         html += `</div></div></div>`;
-        // small summary of history
+        
+        // Histórico resumido
         html += `<div style="margin-top:12px"><strong>Últimas manutenções</strong>`;
         if (item.history && item.history.length) {
-          html += `<ul>`;
-          item.history.slice(0,5).forEach(h => {
+          html += `<ul style="margin-top:8px">`;
+          item.history.slice(0, 5).forEach(h => {
             html += `<li class="small">${escapeHtml(formatDate(h.date))} - ${escapeHtml(h.description)}</li>`;
           });
           html += `</ul>`;
         } else {
-          html += `<div class="small muted">Nenhuma manutenção</div>`;
+          html += `<div class="small muted" style="margin-top:8px">Nenhuma manutenção registrada</div>`;
         }
         html += `</div>`;
+        
         viewBox.innerHTML = html;
       } catch (err) {
         console.error(err);
@@ -633,7 +1058,6 @@
     function openHistory(id) {
       const res = window.storage.get('patrimonio:' + id);
       if (!res || !res.value) return alert('Item não encontrado');
-      
       const item = JSON.parse(res.value);
       historyEditingId = id;
       
@@ -652,40 +1076,15 @@
         historyContent.innerHTML = '<div class="small muted">Nenhuma manutenção registrada</div>';
       }
       
-      // Resetar e mostrar modal
-      maintenanceForm.reset();
       modalHistory.classList.remove('hide');
-      modalHistory.style.display = 'flex';
-      
-      // Focar na data
-      setTimeout(() => {
-        maintenanceDate.focus();
-        maintenanceDate.value = new Date().toISOString().split('T')[0];
-      }, 100);
+      maintenanceDate.value = new Date().toISOString().split('T')[0];
+      maintenanceDescription.focus();
     }
 
-    closeHistory.addEventListener('click', closeHistoryModal);
-
-    // Função para fechar modal
-    function closeHistoryModal() {
+    closeHistory.addEventListener('click', ()=> {
       modalHistory.classList.add('hide');
-      modalHistory.style.display = 'none';
       historyEditingId = null;
       maintenanceForm.reset();
-    }
-
-    // Fechar modal ao clicar fora
-    modalHistory.addEventListener('click', (e) => {
-      if (e.target === modalHistory) {
-        closeHistoryModal();
-      }
-    });
-
-    // Fechar modal com ESC
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !modalHistory.classList.contains('hide')) {
-        closeHistoryModal();
-      }
     });
 
     maintenanceForm.addEventListener('submit', async (e)=> {
@@ -697,19 +1096,46 @@
       const res = window.storage.get('patrimonio:' + historyEditingId);
       const item = JSON.parse(res.value);
       item.history = item.history || [];
-      item.history.unshift({ date, description: desc, timestamp: Date.now() });
+      item.history.unshift({ 
+        date, 
+        description: desc, 
+        timestamp: Date.now(),
+        addedBy: currentUser 
+      });
       window.storage.set('patrimonio:' + historyEditingId, JSON.stringify(item));
       maintenanceForm.reset();
-      openHistory(historyEditingId); // recarregar
+      openHistory(historyEditingId);
       loadData();
     });
+
+    /* ================= SINCRONIZAÇÃO ================= */
+    btnSyncUp.addEventListener('click', salvarBackupNaNuvem);
+    btnSyncDown.addEventListener('click', carregarBackupDaNuvem);
+    closeSync.addEventListener('click', () => modalSync.classList.add('hide'));
+
+    // Backup automático a cada 10 minutos se houver mudanças
+    let lastItemCount = 0;
+    setInterval(() => {
+      if (!currentUser) return;
+      
+      const stats = calcularEstatisticas();
+      if (stats.totalItens > 0 && stats.totalItens !== lastItemCount) {
+        lastItemCount = stats.totalItens;
+        // Backup silencioso (não mostrar UI)
+        salvarBackupNaNuvem().catch(() => {
+          // Silenciar erro no backup automático
+        });
+      }
+    }, 10 * 60 * 1000); // 10 minutos
 
     /* ================= UTILIDADES ================= */
     function formatDate(dateString){
       try {
         const d = new Date(dateString);
-        return d.toLocaleDateString('pt-BR');
-      } catch { return dateString; }
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR').substring(0, 5);
+      } catch { 
+        return dateString; 
+      }
     }
 
     function escapeHtml(str){
@@ -722,13 +1148,27 @@
         .replaceAll("'",'&#039;');
     }
 
-    /* ================= BOOT ================= */
-    // Garantir que o modal está fechado ao iniciar
+    /* ================= INICIALIZAÇÃO ================= */
     window.addEventListener('DOMContentLoaded', () => {
-      // Forçar fechamento do modal se por algum motivo estiver aberto
+      // Forçar fechamento de modais
       if (!modalHistory.classList.contains('hide')) {
         modalHistory.classList.add('hide');
-        modalHistory.style.display = 'none';
+      }
+      if (!modalSync.classList.contains('hide')) {
+        modalSync.classList.add('hide');
+      }
+      
+      // Mostrar última sincronização se existir
+      const lastBackupTime = localStorage.getItem('last_backup_time');
+      if (lastBackupTime) {
+        const timeStr = new Date(lastBackupTime).toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        syncStatus.textContent = `Último backup: ${timeStr}`;
+        syncStatus.classList.remove('hide');
       }
       
       // Inicializar UI
@@ -737,26 +1177,41 @@
       loadData();
     });
 
-    /* ================= PWA: service worker simples (via blob) ================= */
+    /* ================= PWA ================= */
     if ('serviceWorker' in navigator) {
-      // registrar um service worker simples gerado dinamicamente
       const swCode = `
-        self.addEventListener('install', event => { self.skipWaiting(); });
-        self.addEventListener('activate', event => { event.waitUntil(self.clients.claim()); });
+        self.addEventListener('install', event => { 
+          self.skipWaiting(); 
+          console.log('Service Worker instalado');
+        });
+        self.addEventListener('activate', event => { 
+          event.waitUntil(self.clients.claim()); 
+          console.log('Service Worker ativado');
+        });
         self.addEventListener('fetch', event => {
-          // responder normalmente, sem cache agressivo por segurança
+          // Cache estratégico para assets estáticos
+          if (event.request.url.includes('cloudinary.com')) {
+            event.respondWith(
+              caches.match(event.request).then(response => {
+                return response || fetch(event.request);
+              })
+            );
+          }
         });
       `;
       try {
         const blob = new Blob([swCode], { type: 'application/javascript' });
         const swUrl = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(swUrl).catch(()=>{/* ignore */});
+        navigator.serviceWorker.register(swUrl)
+          .then(reg => console.log('SW registrado:', reg))
+          .catch(err => console.log('SW erro:', err));
       } catch(e){
-        // silent
+        console.log('SW falhou:', e);
       }
     }
 
     /* ================= FIM ================= */
+    console.log('✅ Sistema Patrimônio carregado com otimizações Cloudinary!');
   </script>
 </body>
 </html>
