@@ -1,175 +1,1033 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Sistema de Patrimônio</title>
-<style>
- body { font-family: Arial, sans-serif; background: #f2f2f2; margin: 0; padding: 20px; }
- h1 { text-align: center; }
- .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; }
- input, textarea, select { width: 100%; padding: 10px; margin: 6px 0; border: 1px solid #ccc; border-radius: 6px; }
- button { padding: 10px 15px; border: none; background: #0066ff; color: white; border-radius: 6px; cursor: pointer; }
- button:hover { opacity: .9; }
- table { width: 100%; border-collapse: collapse; margin-top: 20px; }
- th, td { padding: 10px; border-bottom: 1px solid #ddd; text-align: left; }
- .actions button { margin-right: 5px; }
- .btn-delete { background: red; }
- .btn-edit { background: orange; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Patrimônio">
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2lzdGVtYSBkZSBQYXRyaW3DtG5pbyIsInNob3J0X25hbWUiOiJQYXRyaW3DtG5pbyIsInN0YXJ0X3VybCI6Ii8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjNjY3ZWVhIiwidGhlbWVfY29sb3IiOiIjNjY3ZWVhIiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCwlM0NzdmcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJyB2aWV3Qm94PScwIDAgMTAwIDEwMCclM0UlM0NyZWN0IGZpbGw9JyUyMzY2N2VlYScgd2lkdGg9JzEwMCcgaGVpZ2h0PScxMDAnLyUzRSUzQ3RleHQgeD0nNTAlMjUnIHk9JzUwJTI1JyBmb250LXNpemU9JzUwJyB0ZXh0LWFuY2hvcj0nbWlkZGxlJyBkb21pbmFudC1iYXNlbGluZT0nbWlkZGxlJyBmaWxsPSd3aGl0ZSclM0UlRjAlOUYlOTMlOEIlM0MvdGV4dCUzRSUzQy9zdmclM0UiLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
+    <title>Sistema de Patrimônio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-box h2 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border 0.3s;
+            font-family: inherit;
+        }
+
+        .form-group input:focus, .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .form-section {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .form-section h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-control {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-add {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .btn-add:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .camera-section {
+            margin-top: 15px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 2px dashed #667eea;
+        }
+
+        .camera-section h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .camera-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .camera-btn {
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .camera-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .file-btn {
+            background: #17a2b8;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .file-btn:hover {
+            background: #138496;
+        }
+
+        .photo-preview {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .photo-item {
+            position: relative;
+            width: 100%;
+            padding-top: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .photo-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border: 2px solid #e0e0e0;
+        }
+
+        .photo-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            font-size: 16px;
+            line-height: 1;
+            z-index: 10;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 800px;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .btn-action {
+            padding: 6px 12px;
+            margin: 0 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .btn-view {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-view:hover {
+            background: #218838;
+        }
+
+        .btn-edit {
+            background: #ffc107;
+            color: white;
+        }
+
+        .btn-edit:hover {
+            background: #e0a800;
+        }
+
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+        }
+
+        .btn-history {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-history:hover {
+            background: #138496;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 900px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            color: #667eea;
+        }
+
+        .close {
+            font-size: 28px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .status-online {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            background: #28a745;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+
+        .error-message, .success-message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .photo-gallery-item {
+            position: relative;
+            padding-top: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .photo-gallery-item img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border: 2px solid #e0e0e0;
+            transition: transform 0.3s;
+        }
+
+        .photo-gallery-item:hover img {
+            transform: scale(1.05);
+            border-color: #667eea;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .upload-status {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e7f3ff;
+            border-radius: 5px;
+            display: none;
+        }
+
+        #cameraVideo {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 15px;
+            }
+            
+            .form-section {
+                padding: 15px;
+            }
+
+            .camera-buttons {
+                flex-direction: column;
+            }
+
+            .camera-btn, .file-btn {
+                width: 100%;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-<h1>Sistema de Patrimônio</h1>
+    <!-- Tela de Login -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h2>🔐 Sistema de Patrimônio</h2>
+            <div id="loginError" class="error-message"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Usuário</label>
+                    <input type="text" id="username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" id="password" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-primary">Entrar</button>
+            </form>
+            <p style="margin-top: 20px; text-align: center; color: #999; font-size: 12px;">
+                Usuário padrão: admin | Senha: admin123
+            </p>
+        </div>
+    </div>
 
-<h3>Adicionar / Editar Equipamento</h3>
+    <!-- Sistema Principal -->
+    <div id="mainSystem" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <h1>📋 Sistema de Controle de Patrimônio</h1>
+                <div class="user-info">
+                    <div>
+                        <span class="status-online"></span>
+                        <span>Conectado: <strong id="currentUser"></strong></span>
+                    </div>
+                    <button class="logout-btn" onclick="logout()">Sair</button>
+                </div>
+            </div>
 
-<input id="numPatrimonio" placeholder="Número do Patrimônio" />
-<input id="equipamento" placeholder="Equipamento" />
-<input id="setor" placeholder="Setor" />
-<input id="modelo" placeholder="Modelo" />
-<input id="configuracao" placeholder="Configuração" />
-<textarea id="historico" placeholder="Histórico"></textarea>
+            <div class="content">
+                <div id="successMessage" class="success-message"></div>
+                
+                <div class="form-section">
+                    <h3>Adicionar Novo Item</h3>
+                    <form id="patrimonioForm">
+                        <div class="form-row">
+                            <input type="text" class="form-control" id="numeroPatrimonio" placeholder="Número de Patrimônio" required>
+                            <input type="text" class="form-control" id="equipamento" placeholder="Equipamento" required>
+                            <input type="text" class="form-control" id="setor" placeholder="Setor Alocado" required>
+                        </div>
+                        <div class="form-row">
+                            <input type="text" class="form-control" id="modelo" placeholder="Modelo" required>
+                            <input type="text" class="form-control" id="configuracao" placeholder="Configuração" required>
+                        </div>
 
-<button onclick="addItem()" class="btn-add">Adicionar Equipamento</button>
-<button id="cancelBtn" style="display:none; background:#555" onclick="cancelEdit()">Cancelar</button>
+                        <div class="camera-section">
+                            <h4>📸 Adicionar Fotos</h4>
+                            <div class="camera-buttons">
+                                <button type="button" class="camera-btn" onclick="startCamera()">📷 Abrir Câmera</button>
+                                <label for="fileInput" class="file-btn" style="display: inline-block; cursor: pointer; text-align: center;">
+                                    📁 Escolher Arquivo
+                                </label>
+                                <input type="file" id="fileInput" accept="image/*" multiple style="display: none;" onchange="handleFileSelect(event)">
+                            </div>
+                            
+                            <video id="cameraVideo" autoplay playsinline style="display: none;"></video>
+                            <div class="camera-controls" id="cameraControls" style="display: none;">
+                                <button type="button" class="camera-btn" onclick="capturePhoto()">📸 Capturar</button>
+                                <button type="button" class="btn-delete" onclick="stopCamera()">❌ Fechar Câmera</button>
+                            </div>
 
-<h3>Itens Cadastrados</h3>
-<table>
-<thead>
- <tr>
-   <th>Patrimônio</th>
-   <th>Equipamento</th>
-   <th>Setor</th>
-   <th>Modelo</th>
-   <th>Ações</th>
- </tr>
-</thead>
-<tbody id="tableBody"></tbody>
-</table>
-</div>
+                            <div class="upload-status" id="uploadStatus"></div>
+                            <div class="photo-preview" id="photoPreview"></div>
+                        </div>
 
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycbyopdZ5ftmkdpHopaFJnaircPMDZB-1ALesdyEWnr3xuBojNpBXhaU0AGG5n0DfbE8U4Q/exec";
-let items = [];
-let editingIndex = -1;
+                        <button type="submit" class="btn-add">➕ Adicionar Item</button>
+                    </form>
+                </div>
 
-async function loadData() {
-    const response = await fetch(API_URL);
-    const data = await response.json();
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nº Patrimônio</th>
+                                <th>Equipamento</th>
+                                <th>Setor</th>
+                                <th>Modelo</th>
+                                <th>Configuração</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patrimonioTable">
+                            <tr>
+                                <td colspan="6" class="empty-state">
+                                    Nenhum item cadastrado. Adicione o primeiro item acima!
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    items = data.slice(1).map((row, index) => ({
-        numPatrimonio: row[0],
-        equipamento: row[1],
-        setor: row[2],
-        modelo: row[3],
-        configuracao: row[4],
-        historico: row[5],
-        dataRegistro: row[6],
-        indexPlanilha: index + 1
-    }));
+    <!-- Modal de Visualização -->
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📦 Detalhes do Item</h3>
+                <span class="close" onclick="closeViewModal()">&times;</span>
+            </div>
+            <div id="viewContent"></div>
+        </div>
+    </div>
 
-    renderTable();
-}
+    <!-- Modal de Histórico -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📜 Histórico de Manutenção</h3>
+                <span class="close" onclick="closeHistoryModal()">&times;</span>
+            </div>
+            <div id="historyContent"></div>
+            <div style="margin-top: 20px;">
+                <h4>Adicionar Manutenção</h4>
+                <form id="maintenanceForm">
+                    <div class="form-group">
+                        <input type="date" class="form-control" id="maintenanceDate" required>
+                    </div>
+                    <div class="form-group">
+                        <textarea class="form-control" id="maintenanceDescription" placeholder="Descrição da manutenção" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn-add">Adicionar Manutenção</button>
+                </form>
+            </div>
+        </div>
+    </div>
 
-function renderTable() {
-    const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = "";
+    <script>
+        // Configuração Cloudinary
+        const CLOUDINARY_URL = 'https://api.cloudinary.com/v1_1/dwanrvvob/image/upload';
+        const UPLOAD_PRESET = 'EETI_fotos';
 
-    items.forEach((item, i) => {
-        tbody.innerHTML += `
-        <tr>
-            <td>${item.numPatrimonio}</td>
-            <td>${item.equipamento}</td>
-            <td>${item.setor}</td>
-            <td>${item.modelo}</td>
-            <td class="actions">
-                <button class="btn-edit" onclick="editItem(${i})">Editar</button>
-                <button class="btn-delete" onclick="deleteItem(${i})">Excluir</button>
-            </td>
-        </tr>`;
-    });
-}
+        let currentItemId = null;
+        let isLoggedIn = false;
+        let tempPhotos = [];
+        let cameraStream = null;
 
-async function addItem() {
-    const numPatrimonio = document.getElementById("numPatrimonio").value.trim();
-    const equipamento = document.getElementById("equipamento").value.trim();
-    const setor = document.getElementById("setor").value.trim();
-    const modelo = document.getElementById("modelo").value.trim();
-    const configuracao = document.getElementById("configuracao").value.trim();
-    const historico = document.getElementById("historico").value.trim();
+        // Sistema de autenticação
+        const users = {
+            'admin': 'admin123'
+        };
 
-    if (!numPatrimonio || !equipamento) {
-        alert("Preencha número e equipamento");
-        return;
-    }
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (users[username] && users[username] === password) {
+                isLoggedIn = true;
+                document.getElementById('currentUser').textContent = username;
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('mainSystem').style.display = 'block';
+                await loadData();
+            } else {
+                const errorDiv = document.getElementById('loginError');
+                errorDiv.textContent = 'Usuário ou senha incorretos!';
+                errorDiv.style.display = 'block';
+                setTimeout(() => {
+                    errorDiv.style.display = 'none';
+                }, 3000);
+            }
+        });
 
-    const item = { numPatrimonio, equipamento, setor, modelo, configuracao, historico };
+        function logout() {
+            isLoggedIn = false;
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('mainSystem').style.display = 'none';
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            stopCamera();
+        }
 
-    let action = "add";
-    let rowIndex = null;
+        // Funções da Câmera
+        async function startCamera() {
+            try {
+                const video = document.getElementById('cameraVideo');
+                const controls = document.getElementById('cameraControls');
+                
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' },
+                    audio: false 
+                });
+                
+                video.srcObject = cameraStream;
+                video.style.display = 'block';
+                controls.style.display = 'flex';
+            } catch (error) {
+                alert('Erro ao acessar câmera: ' + error.message);
+            }
+        }
 
-    if (editingIndex >= 0) {
-        action = "edit";
-        rowIndex = items[editingIndex].indexPlanilha;
-    }
+        function stopCamera() {
+            const video = document.getElementById('cameraVideo');
+            const controls = document.getElementById('cameraControls');
+            
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+            
+            video.style.display = 'none';
+            controls.style.display = 'none';
+        }
 
-    await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action, row: rowIndex, ...item })
-    });
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            canvas.toBlob(async (blob) => {
+                await uploadPhoto(blob);
+            }, 'image/jpeg', 0.8);
+        }
 
-    editingIndex = -1;
-    clearForm();
-    loadData();
-    document.querySelector(".btn-add").textContent = "Adicionar Equipamento";
-}
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            for (let file of files) {
+                await uploadPhoto(file);
+            }
+            event.target.value = '';
+        }
 
-function editItem(index) {
-    const item = items[index];
+        async function uploadPhoto(blob) {
+            const statusDiv = document.getElementById('uploadStatus');
+            statusDiv.innerHTML = '<div class="loading"></div> Enviando foto...';
+            statusDiv.style.display = 'block';
 
-    document.getElementById("numPatrimonio").value = item.numPatrimonio;
-    document.getElementById("equipamento").value = item.equipamento;
-    document.getElementById("setor").value = item.setor;
-    document.getElementById("modelo").value = item.modelo;
-    document.getElementById("configuracao").value = item.configuracao;
-    document.getElementById("historico").value = item.historico;
+            try {
+                const formData = new FormData();
+                formData.append('file', blob);
+                formData.append('upload_preset', UPLOAD_PRESET);
+                formData.append('folder', 'patrimonio');
 
-    editingIndex = index;
-    document.querySelector(".btn-add").textContent = "Salvar Alterações";
-    document.getElementById("cancelBtn").style.display = "inline-block";
-}
+                const response = await fetch(CLOUDINARY_URL, {
+                    method: 'POST',
+                    body: formData
+                });
 
-function cancelEdit() {
-    editingIndex = -1;
-    clearForm();
-    document.querySelector(".btn-add").textContent = "Adicionar Equipamento";
-    document.getElementById("cancelBtn").style.display = "none";
-}
+                const data = await response.json();
+                
+                if (data.secure_url) {
+                    tempPhotos.push(data.secure_url);
+                    displayTempPhotos();
+                    statusDiv.innerHTML = '✅ Foto enviada com sucesso!';
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 2000);
+                }
+            } catch (error) {
+                statusDiv.innerHTML = '❌ Erro ao enviar foto: ' + error.message;
+                setTimeout(() => {
+                    statusDiv.style.display = 'none';
+                }, 3000);
+            }
+        }
 
-function clearForm() {
-    document.getElementById("numPatrimonio").value = "";
-    document.getElementById("equipamento").value = "";
-    document.getElementById("setor").value = "";
-    document.getElementById("modelo").value = "";
-    document.getElementById("configuracao").value = "";
-    document.getElementById("historico").value = "";
-}
+        function displayTempPhotos() {
+            const preview = document.getElementById('photoPreview');
+            preview.innerHTML = tempPhotos.map((url, index) => `
+                <div class="photo-item">
+                    <img src="${url}" alt="Foto ${index + 1}">
+                    <button class="photo-remove" onclick="removeTempPhoto(${index})">×</button>
+                </div>
+            `).join('');
+        }
 
-async function deleteItem(index) {
-    if (!confirm("Deseja excluir?")) return;
+        function removeTempPhoto(index) {
+            tempPhotos.splice(index, 1);
+            displayTempPhotos();
+        }
 
-    const row = items[index].indexPlanilha;
+        // Carregar dados
+        async function loadData() {
+            try {
+                const result = await window.storage.list('patrimonio:');
+                const table = document.getElementById('patrimonioTable');
+                
+                if (!result || !result.keys || result.keys.length === 0) {
+                    table.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum item cadastrado. Adicione o primeiro item acima!</td></tr>';
+                    return;
+                }
 
-    await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({ action: "delete", row })
-    });
+                let html = '';
+                for (const key of result.keys) {
+                    try {
+                        const data = await window.storage.get(key);
+                        if (data && data.value) {
+                            const item = JSON.parse(data.value);
+                            const photoCount = item.photos ? item.photos.length : 0;
+                            html += `
+                                <tr>
+                                    <td>${item.numeroPatrimonio}</td>
+                                    <td>${item.equipamento}</td>
+                                    <td>${item.setor}</td>
+                                    <td>${item.modelo}</td>
+                                    <td>${item.configuracao}</td>
+                                    <td>
+                                        <button class="btn-action btn-view" onclick="viewItem('${item.id}')">👁️ Ver ${photoCount > 0 ? `(${photoCount} 📸)` : ''}</button>
+                                        <button class="btn-action btn-history" onclick="showHistory('${item.id}')">📜 Histórico</button>
+                                        <button class="btn-action btn-delete" onclick="deleteItem('${item.id}')">🗑️ Excluir</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                    } catch (e) {
+                        console.error('Erro ao processar item:', e);
+                    }
+                }
+                table.innerHTML = html || '<tr><td colspan="6" class="empty-state">Nenhum item encontrado</td></tr>';
+            } catch (error) {
+                console.error('Erro ao carregar dados:', error);
+            }
+        }
 
-    loadData();
-}
+        // Adicionar novo item
+        document.getElementById('patrimonioForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const item = {
+                id: Date.now().toString(),
+                numeroPatrimonio: document.getElementById('numeroPatrimonio').value,
+                equipamento: document.getElementById('equipamento').value,
+                setor: document.getElementById('setor').value,
+                modelo: document.getElementById('modelo').value,
+                configuracao: document.getElementById('configuracao').value,
+                photos: [...tempPhotos],
+                history: []
+            };
 
-loadData();
-</script>
+            try {
+                await window.storage.set(`patrimonio:${item.id}`, JSON.stringify(item));
+                document.getElementById('patrimonioForm').reset();
+                tempPhotos = [];
+                displayTempPhotos();
+                stopCamera();
+                
+                const successMsg = document.getElementById('successMessage');
+                successMsg.textContent = '✅ Item adicionado com sucesso!';
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 3000);
+                
+                await loadData();
+                window.scrollTo(0, document.body.scrollHeight);
+            } catch (error) {
+                alert('Erro ao salvar item: ' + error.message);
+            }
+        });
+
+        // Ver item
+        async function viewItem(id) {
+            try {
+                const result = await window.storage.get(`patrimonio:${id}`);
+                const item = JSON.parse(result.value);
+                
+                const content = document.getElementById('viewContent');
+                
+                let photosHtml = '';
+                if (item.photos && item.photos.length > 0) {
+                    photosHtml = `
+                        <h4>📸 Fotos (${item.photos.length})</h4>
+                        <div class="photo-gallery">
+                            ${item.photos.map(url => `
+                                <div class="photo-gallery-item">
+                                    <img src="${url}" alt="Foto" onclick="window.open('${url}', '_blank')">
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+                
+                content.innerHTML = `
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 10px;">
+                        <p><strong>Número de Patrimônio:</strong> ${item.numeroPatrimonio}</p>
+                        <p><strong>Equipamento:</strong> ${item.equipamento}</p>
+                        <p><strong>Setor:</strong> ${item.setor}</p>
+                        <p><strong>Modelo:</strong> ${item.modelo}</p>
+                        <p><strong>Configuração:</strong> ${item.configuracao}</p>
+                    </div>
+                    ${photosHtml}
+                `;
+                
+                document.getElementById('viewModal').style.display = 'block';
+            } catch (error) {
+                alert('Erro ao carregar item: ' + error.message);
+            }
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').style.display = 'none';
+        }
+
+        // Excluir item
+        async function deleteItem(id) {
+            if (confirm('Tem certeza que deseja excluir este item?')) {
+                try {
+                    await window.storage.delete(`patrimonio:${id}`);
+                    await loadData();
+                    
+                    const successMsg = document.getElementById('successMessage');
+                    successMsg.textContent = '✅ Item excluído com sucesso!';
+                    successMsg.style.display = 'block';
+                    setTimeout(() => {
+                        successMsg.style.display = 'none';
+                    }, 3000);
+                } catch (error) {
+                    alert('Erro ao excluir item: ' + error.message);
+                }
+            }
+        }
+
+        // Mostrar histórico
+        async function showHistory(id) {
+            currentItemId = id;
+            try {
+                const result = await window.storage.get(`patrimonio:${id}`);
+                const item = JSON.parse(result.value);
+                
+                const historyContent = document.getElementById('historyContent');
+                if (item.history && item.history.length > 0) {
+                    historyContent.innerHTML = item.history.map(h => `
+                        <div class="history-item">
+                            <strong>📅 ${formatDate(h.date)}</strong><br>
+                            ${h.description}
+                        </div>
+                    `).join('');
+                } else {
+                    historyContent.innerHTML = '<div class="empty-state">Nenhuma manutenção registrada</div>';
+                }
+                
+                document.getElementById('historyModal').style.display = 'block';
+            } catch (error) {
+                alert('Erro ao carregar histórico: ' + error.message);
+            }
+        }
+
+        function closeHistoryModal() {
+            document.getElementById('historyModal').style.display = 'none';
+            document.getElementById('maintenanceForm').reset();
+            currentItemId = null;
+        }
+
+        // Adicionar manutenção
+        document.getElementById('maintenanceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!currentItemId) return;
+
+            try {
+                const result = await window.storage.get(`patrimonio:${currentItemId}`);
+                const item = JSON.parse(result.value);
+                
+                const maintenance = {
+                    date: document.getElementById('maintenanceDate').value,
+                    description: document.getElementById('maintenanceDescription').value,
+                    timestamp: Date.now()
+                };
+
+                item.history = item.history || [];
+                item.history.unshift(maintenance);
+
+                await window.storage.set(`patrimonio:${currentItemId}`, JSON.stringify(item));
+                
+                document.getElementById('maintenanceForm').reset();
+                await showHistory(currentItemId);
+            } catch (error) {
+                alert('Erro ao adicionar manutenção: ' + error.message);
+            }
+        });
+
+        // Formatar data
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('pt-BR');
+        }
+
+        // Fechar modal ao clicar fora
+        window.onclick = function(event) {
+            const viewModal = document.getElementById('viewModal');
+            const historyModal = document.getElementById('historyModal');
+            
+            if (event.target == viewModal) {
+                closeViewModal();
+            }
+            if (event.target == historyModal) {
+                closeHistoryModal();
+            }
+        }
+
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('data:text/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZSA9PiB7fSk7')
+                    .catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>
