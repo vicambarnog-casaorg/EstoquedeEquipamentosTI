@@ -106,7 +106,9 @@
         <div id="formArea" class="hide">
           <h3 id="formTitle">➕ Adicionar item</h3>
           <div id="photoCounter" class="small" style="margin-bottom:8px">0/10 fotos</div>
-          <form id="patrimonioForm">
+          
+          <!-- CORREÇÃO: FORM sem type="submit" no botão principal -->
+          <div id="patrimonioForm">
             <div class="form-row">
               <div>
                 <label for="numeroPatrimonio">Número de Patrimônio</label>
@@ -145,11 +147,12 @@
             </div>
 
             <div style="margin-top:12px;display:flex;gap:8px">
-              <button class="btn" type="submit" style="background:var(--primary);color:#fff" id="btnSave">Salvar</button>
+              <!-- CORREÇÃO: type="button" em vez de type="submit" -->
+              <button class="btn" type="button" style="background:var(--primary);color:#fff" id="btnSave">Salvar</button>
               <button class="btn" type="button" id="btnCancel" style="background:#f3f3f3">Cancelar</button>
               <button class="btn" type="button" id="btnNew" style="background:#eef4ff">Novo item</button>
             </div>
-          </form>
+          </div>
         </div>
 
         <div id="cameraModal" class="hide" style="margin-top:12px">
@@ -234,14 +237,9 @@
   <script>
     /* ================= CONFIGURAÇÕES ================= */
     const CLOUD_NAME = 'dwanrvvob';
-    
-    // PRESETS CORRETOS - AGORA COM resource_type: auto (detecta automaticamente)
-    const UPLOAD_PRESET_FOTOS = 'EETI_fotos';     // Para fotos (já existe)
-    const UPLOAD_PRESET_BACKUP = 'EETI_backups';  // Para backups (criado por você - resource_type: auto)
-    
-    // URL CORRETA para upload (com Cloudinary v2)
+    const UPLOAD_PRESET_FOTOS = 'EETI_fotos';
+    const UPLOAD_PRESET_BACKUP = 'EETI_backups';
     const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`;
-    
     const users = { admin: 'admin123' };
     const MAX_PHOTOS_PER_ITEM = 10;
 
@@ -257,7 +255,7 @@
     };
 
     /* ================= ESTADO ================= */
-    let currentUser = null;
+    let currentUser = localStorage.getItem('currentUser') || null; // PERSISTE LOGIN
     let tempPhotos = [];
     let editingId = null;
     let cameraStream = null;
@@ -311,335 +309,24 @@
       btnSyncDown: document.getElementById('btnSyncDown')
     };
 
-    /* ================= UPLOAD PARA CLOUDINARY - CORRIGIDO ================= */
-    async function uploadParaCloudinary(fileOuBlob, tipo = 'foto') {
-      const form = new FormData();
-      form.append('file', fileOuBlob);
-      
-      // USAR PRESET CORRETO PARA CADA TIPO
-      if (tipo === 'backup') {
-        form.append('upload_preset', UPLOAD_PRESET_BACKUP);  // EETI_backups
-        console.log('📤 Usando preset para backup:', UPLOAD_PRESET_BACKUP);
-      } else {
-        form.append('upload_preset', UPLOAD_PRESET_FOTOS);   // EETI_fotos
-        
-        // Otimizações apenas para fotos
-        form.append('quality', '70');
-        form.append('width', '1200');
-        form.append('fetch_format', 'auto');
-      }
-      
-      try {
-        console.log(`📤 Enviando ${tipo === 'backup' ? 'backup' : 'foto'}...`);
-        
-        const response = await fetch(CLOUDINARY_URL, {
-          method: 'POST',
-          body: form
-        });
-        
-        const data = await response.json();
-        
-        if (!response.ok) {
-          console.error('❌ Resposta Cloudinary:', data);
-          throw new Error(data.error?.message || `HTTP ${response.status}`);
-        }
-        
-        if (data.secure_url) {
-          console.log(`✅ Upload bem-sucedido! Tipo: ${tipo}`);
-          console.log(`📎 URL: ${data.secure_url.substring(0, 80)}...`);
-          return data.secure_url;
-        } else {
-          throw new Error('URL não retornada pelo Cloudinary');
-        }
-        
-      } catch (erro) {
-        console.error(`❌ Erro no upload (${tipo}):`, erro);
-        throw erro;
-      }
-    }
-
-    /* ================= BACKUP NA NUVEM - SIMPLIFICADO ================= */
-    async function salvarBackupNaNuvem() {
-      if (!currentUser) {
-        alert('Faça login primeiro');
-        return;
-      }
-      
-      elementos.syncStatus.classList.remove('hide');
-      elementos.syncStatus.textContent = '🔄 Criando backup...';
-      
-      try {
-        // 1. Coletar todos os itens
-        const result = window.storage.list('patrimonio:');
-        const keys = result.keys || [];
-        const todosItens = [];
-        
-        for (const key of keys) {
-          const res = window.storage.get(key);
-          if (res && res.value) {
-            todosItens.push(JSON.parse(res.value));
-          }
-        }
-        
-        if (todosItens.length === 0) {
-          elementos.syncStatus.textContent = '⚠ Nenhum item para backup';
-          setTimeout(() => elementos.syncStatus.classList.add('hide'), 3000);
-          return;
-        }
-        
-        // 2. Criar objeto de backup
-        const backupData = {
-          app: 'Sistema Patrimônio',
-          timestamp: new Date().toISOString(),
-          usuario: currentUser,
-          totalItens: todosItens.length,
-          totalFotos: todosItens.reduce((total, item) => total + (item.photos?.length || 0), 0),
-          itens: todosItens
-        };
-        
-        // 3. Converter para JSON
-        const jsonString = JSON.stringify(backupData, null, 2);
-        const blob = new Blob([jsonString], { 
-          type: 'application/json',
-          lastModified: Date.now()
-        });
-        
-        // 4. Nome do arquivo
-        const dataAtual = new Date().toISOString().split('T')[0];
-        const horaAtual = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-        const nomeArquivo = `backup_patrimonio_${dataAtual}_${horaAtual}.json`;
-        
-        // 5. Upload para Cloudinary COMO BACKUP
-        elementos.syncStatus.textContent = '🔄 Enviando para Cloudinary...';
-        console.log(`📤 Enviando backup: ${nomeArquivo} (${Math.round(blob.size/1024)}KB)`);
-        
-        lastBackupUrl = await uploadParaCloudinary(blob, 'backup');
-        
-        // 6. Salvar referência localmente
-        localStorage.setItem('ultimo_backup_url', lastBackupUrl);
-        localStorage.setItem('ultimo_backup_data', new Date().toISOString());
-        localStorage.setItem('ultimo_backup_itens', todosItens.length.toString());
-        
-        // 7. Atualizar UI
-        elementos.syncStatus.textContent = `✅ Backup criado! ${todosItens.length} itens`;
-        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
-        
-        // 8. Mostrar modal com informações
-        mostrarModalSync(`
-          <div style="color: #28a745;">
-            <h4>✅ Backup concluído com sucesso!</h4>
-            <p><strong>${todosItens.length}</strong> itens salvos na nuvem</p>
-            <p><strong>${backupData.totalFotos}</strong> fotos incluídas</p>
-            <p><strong>${new Date().toLocaleString('pt-BR')}</strong></p>
-            <p class="small">Tamanho: ${Math.round(blob.size/1024)}KB</p>
-            <p class="small">Preset usado: <code>${UPLOAD_PRESET_BACKUP}</code></p>
-            <button onclick="copiarURLBackup()" class="btn" style="margin-top:8px;background:#6c757d;color:white;padding:6px 12px;font-size:12px;">
-              📋 Copiar URL do Backup
-            </button>
-          </div>
-        `);
-        
-        // Função auxiliar para copiar URL
-        window.copiarURLBackup = async () => {
-          try {
-            await navigator.clipboard.writeText(lastBackupUrl);
-            alert('URL copiada para a área de transferência!');
-          } catch (err) {
-            console.error('Erro ao copiar:', err);
-          }
-        };
-        
-        return lastBackupUrl;
-        
-      } catch (erro) {
-        console.error('❌ Erro no backup:', erro);
-        
-        elementos.syncStatus.textContent = '❌ Erro no backup';
-        
-        // Mensagem amigável de erro
-        let mensagemErro = erro.message;
-        if (erro.message.includes('Invalid')) {
-          mensagemErro = 'O Cloudinary não está aceitando arquivos JSON. Verifique se o preset "EETI_backups" está configurado corretamente.';
-        }
-        
-        mostrarModalSync(`
-          <div style="color: #dc3545;">
-            <h4>❌ Erro no backup</h4>
-            <p>${mensagemErro}</p>
-            <p class="small">Preset usado: <code>${UPLOAD_PRESET_BACKUP}</code></p>
-            <p class="small">Sugestões:</p>
-            <ol class="small" style="text-align:left;margin-left:20px">
-              <li>Verifique se o preset existe</li>
-              <li>Confirme que está como "Unsigned"</li>
-              <li>Tente criar um novo preset</li>
-            </ol>
-          </div>
-        `);
-        
-        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
-        return null;
-      }
-    }
-
-    /* ================= RESTAURAR BACKUP ================= */
-    async function restaurarBackupDaNuvem() {
-      if (!currentUser) {
-        alert('Faça login primeiro');
-        return;
-      }
-      
-      elementos.syncStatus.classList.remove('hide');
-      elementos.syncStatus.textContent = '🔄 Buscando backup...';
-      
-      try {
-        // 1. Pedir URL do backup
-        let urlBackup = localStorage.getItem('ultimo_backup_url');
-        
-        if (!urlBackup) {
-          urlBackup = prompt('Cole a URL do backup:');
-          if (!urlBackup) {
-            elementos.syncStatus.textContent = '❌ URL não fornecida';
-            setTimeout(() => elementos.syncStatus.classList.add('hide'), 3000);
-            return;
-          }
-        }
-        
-        // 2. Baixar o backup
-        elementos.syncStatus.textContent = '🔄 Baixando dados...';
-        console.log('📥 Baixando backup de:', urlBackup);
-        
-        const resposta = await fetch(urlBackup);
-        
-        if (!resposta.ok) {
-          throw new Error(`HTTP ${resposta.status}: ${resposta.statusText}`);
-        }
-        
-        const backupData = await resposta.json();
-        
-        // 3. Validar estrutura
-        if (!backupData.itens || !Array.isArray(backupData.itens)) {
-          throw new Error('Formato de backup inválido');
-        }
-        
-        // 4. Confirmar com usuário
-        const confirmar = confirm(
-          `Restaurar backup de ${new Date(backupData.timestamp).toLocaleString('pt-BR')}?\n\n` +
-          `${backupData.itens.length} itens encontrados\n` +
-          `Usuário original: ${backupData.usuario || 'admin'}\n\n` +
-          `Isso substituirá TODOS os dados atuais.`
-        );
-        
-        if (!confirmar) {
-          elementos.syncStatus.textContent = '❌ Restauração cancelada';
-          setTimeout(() => elementos.syncStatus.classList.add('hide'), 3000);
-          return;
-        }
-        
-        // 5. Limpar dados atuais
-        const chavesAtuais = window.storage.list('patrimonio:').keys;
-        chavesAtuais.forEach(chave => window.storage.delete(chave));
-        
-        // 6. Restaurar dados
-        let itensRestaurados = 0;
-        for (const item of backupData.itens) {
-          window.storage.set('patrimonio:' + item.id, JSON.stringify(item));
-          itensRestaurados++;
-        }
-        
-        // 7. Atualizar interface
+    /* ================= PERSISTÊNCIA DE LOGIN ================= */
+    function checkLoginStatus() {
+      if (currentUser) {
+        // Se já está logado, mostrar app diretamente
+        showAppUI();
         loadData();
-        
-        // 8. Mostrar sucesso
-        elementos.syncStatus.textContent = `✅ ${itensRestaurados} itens restaurados`;
-        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
-        
-        mostrarModalSync(`
-          <div style="color: #28a745;">
-            <h4>✅ Restauração concluída!</h4>
-            <p><strong>${itensRestaurados}</strong> itens restaurados</p>
-            <p><strong>${backupData.totalFotos || 0}</strong> fotos recuperadas</p>
-            <p><strong>${new Date(backupData.timestamp).toLocaleString('pt-BR')}</strong></p>
-            <p class="small">Backup original criado por: ${backupData.usuario || 'admin'}</p>
-          </div>
-        `);
-        
-        return itensRestaurados;
-        
-      } catch (erro) {
-        console.error('❌ Erro na restauração:', erro);
-        
-        elementos.syncStatus.textContent = '❌ Erro na restauração';
-        
-        mostrarModalSync(`
-          <div style="color: #dc3545;">
-            <h4>❌ Erro na restauração</h4>
-            <p>${erro.message}</p>
-            <p class="small">Verifique:</p>
-            <ol class="small" style="text-align:left;margin-left:20px">
-              <li>Se a URL está correta</li>
-              <li>Sua conexão com internet</li>
-              <li>Se o arquivo ainda existe no Cloudinary</li>
-            </ol>
-          </div>
-        `);
-        
-        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
-        return 0;
+      } else {
+        showLogin();
       }
     }
 
-    /* ================= FUNÇÕES AUXILIARES ================= */
-    function mostrarModalSync(conteudo) {
-      elementos.syncInfo.innerHTML = conteudo;
-      elementos.modalSync.classList.remove('hide');
-    }
-
-    function calcularEstatisticas() {
-      const result = window.storage.list('patrimonio:');
-      const keys = result.keys || [];
-      let totalFotos = 0;
-      let totalItens = 0;
-      
-      for (const key of keys) {
-        const res = window.storage.get(key);
-        if (res && res.value) {
-          const item = JSON.parse(res.value);
-          totalItens++;
-          totalFotos += (item.photos?.length || 0);
-        }
-      }
-      
-      return { totalItens, totalFotos };
-    }
-
-    function atualizarEstatisticasUI() {
-      const stats = calcularEstatisticas();
-      elementos.totalCount.textContent = stats.totalItens;
-      elementos.totalFotos.textContent = `${stats.totalFotos} fotos`;
-      
-      // Mostrar último backup se existir
-      const ultimoBackup = localStorage.getItem('ultimo_backup_data');
-      if (ultimoBackup) {
-        const dataFormatada = new Date(ultimoBackup).toLocaleString('pt-BR', {
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
-        elementos.syncStatus.innerHTML = `📊 ${stats.totalItens} itens | 📷 ${stats.totalFotos} fotos | 🔄 ${dataFormatada}`;
-        elementos.syncStatus.classList.remove('hide');
-      }
-    }
-
-    /* ================= RESTANTE DO CÓDIGO (mantido igual) ================= */
-    // [Aqui vai TODO o resto do seu código original...]
-    // Incluindo: autenticação, gerenciamento de fotos, CRUD, etc.
-    // Como está muito longo, mantenho apenas as partes essenciais
-
-    // ================= AUTENTICAÇÃO =================
+    /* ================= AUTENTICAÇÃO ================= */
     function showLogin() {
       document.getElementById('loginBox').classList.remove('hide');
       elementos.formArea.classList.add('hide');
+      elementos.btnOpenLogin.classList.add('hide');
+      elementos.btnLogout.classList.add('hide');
+      elementos.currentUserBox.classList.add('hide');
     }
     
     function showAppUI() {
@@ -652,12 +339,15 @@
       atualizarEstatisticasUI();
     }
 
+    // CORREÇÃO: Prevenir submit padrão do formulário
     elementos.loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
+      e.preventDefault(); // IMPEDE RECARREGAMENTO DA PÁGINA
       const user = document.getElementById('username').value.trim();
       const pass = document.getElementById('password').value.trim();
+      
       if (users[user] && users[user] === pass) {
         currentUser = user;
+        localStorage.setItem('currentUser', user); // SALVA NO LOCALSTORAGE
         showAppUI();
         loadData();
       } else {
@@ -667,19 +357,56 @@
       }
     });
 
-    // ================= UPLOAD DE FOTOS =================
-    async function uploadFoto(file) {
+    document.getElementById('btnFillDemo').addEventListener('click', () => {
+      document.getElementById('username').value = 'admin';
+      document.getElementById('password').value = 'admin123';
+    });
+
+    elementos.btnLogout.addEventListener('click', () => {
+      currentUser = null;
+      localStorage.removeItem('currentUser'); // REMOVE DO LOCALSTORAGE
+      elementos.currentUserBox.classList.add('hide');
+      elementos.btnLogout.classList.add('hide');
+      elementos.btnOpenLogin.classList.remove('hide');
+      showLogin();
+    });
+
+    /* ================= UPLOAD PARA CLOUDINARY ================= */
+    async function uploadParaCloudinary(fileOuBlob, tipo = 'foto') {
+      const form = new FormData();
+      form.append('file', fileOuBlob);
+      
+      if (tipo === 'backup') {
+        form.append('upload_preset', UPLOAD_PRESET_BACKUP);
+      } else {
+        form.append('upload_preset', UPLOAD_PRESET_FOTOS);
+        form.append('quality', '70');
+        form.append('width', '1200');
+        form.append('fetch_format', 'auto');
+      }
+      
       try {
-        elementos.uploadStatus.textContent = 'Enviando...';
-        const url = await uploadParaCloudinary(file, 'foto');
-        addTempPhotoUrl(url);
-        return url;
+        const response = await fetch(CLOUDINARY_URL, {
+          method: 'POST',
+          body: form
+        });
+        
+        const data = await response.json();
+        
+        if (data.secure_url) {
+          console.log(`✅ Upload bem-sucedido!`);
+          return data.secure_url;
+        } else {
+          throw new Error(data.error?.message || 'Upload falhou');
+        }
+        
       } catch (erro) {
-        elementos.uploadStatus.textContent = 'Erro no upload';
+        console.error(`❌ Erro no upload:`, erro);
         throw erro;
       }
     }
 
+    /* ================= GESTÃO DE FOTOS ================= */
     function addTempPhotoUrl(url) {
       if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
         alert(`⚠ Limite de ${MAX_PHOTOS_PER_ITEM} fotos por item atingido!`);
@@ -693,6 +420,15 @@
     function renderPhotoPreview() {
       elementos.photoPreview.innerHTML = '';
       elementos.photoCounter.textContent = `${tempPhotos.length}/${MAX_PHOTOS_PER_ITEM} fotos`;
+      
+      if (tempPhotos.length === 0) {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.className = 'small muted';
+        emptyMsg.textContent = 'Nenhuma foto adicionada';
+        emptyMsg.style.width = '100%';
+        elementos.photoPreview.appendChild(emptyMsg);
+        return;
+      }
       
       tempPhotos.forEach((url, idx) => {
         const div = document.createElement('div');
@@ -720,21 +456,219 @@
     elementos.fileInput.addEventListener('change', async (e) => {
       const files = Array.from(e.target.files || []);
       for (const f of files) {
-        if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) break;
+        if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
+          alert(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido!`);
+          break;
+        }
+        
         try {
-          await uploadFoto(f);
+          elementos.uploadStatus.textContent = 'Enviando...';
+          const url = await uploadParaCloudinary(f, 'foto');
+          addTempPhotoUrl(url);
+          elementos.uploadStatus.textContent = 'Enviado!';
+          setTimeout(() => elementos.uploadStatus.textContent = 'Nenhuma foto', 2000);
         } catch (err) {
           console.error('Erro upload foto:', err);
+          elementos.uploadStatus.textContent = 'Erro no envio';
         }
       }
       elementos.fileInput.value = '';
     });
 
-    // ================= CRUD =================
+    /* ================= CÂMERA - CORREÇÃO ================= */
+    elementos.btnOpenCamera.addEventListener('click', async () => {
+      if (cameraStream) {
+        // Se já está aberta, apenas mostrar
+        elementos.cameraModal.classList.remove('hide');
+        return;
+      }
+      
+      try {
+        // Verificar se está em HTTPS ou localhost
+        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          alert('A câmera requer HTTPS ou localhost para funcionar. Para testar localmente, use um servidor local como Live Server.');
+          return;
+        }
+        
+        // Tentar primeiro a câmera traseira, depois qualquer câmera
+        const constraints = {
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        };
+        
+        cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
+          .catch(async () => {
+            // Fallback: qualquer câmera
+            return await navigator.mediaDevices.getUserMedia({
+              video: true,
+              audio: false
+            });
+          });
+        
+        elementos.cameraVideo.srcObject = cameraStream;
+        elementos.cameraModal.classList.remove('hide');
+        
+      } catch (err) {
+        console.error('Erro câmera:', err);
+        alert('Não foi possível acessar a câmera. Verifique as permissões ou use HTTPS.');
+      }
+    });
+
+    elementos.btnCloseCamera.addEventListener('click', () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      elementos.cameraVideo.srcObject = null;
+      elementos.cameraModal.classList.add('hide');
+    });
+
+    elementos.btnCapture.addEventListener('click', async () => {
+      if (!cameraStream || tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
+        if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
+          alert(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido!`);
+        }
+        return;
+      }
+      
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = elementos.cameraVideo.videoWidth;
+        canvas.height = elementos.cameraVideo.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(elementos.cameraVideo, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob(async (blob) => {
+          try {
+            elementos.uploadStatus.textContent = 'Enviando foto...';
+            const url = await uploadParaCloudinary(blob, 'foto');
+            addTempPhotoUrl(url);
+            elementos.uploadStatus.textContent = 'Foto capturada!';
+            setTimeout(() => elementos.uploadStatus.textContent = 'Nenhuma foto', 2000);
+          } catch (err) {
+            console.error('Erro upload câmera:', err);
+            elementos.uploadStatus.textContent = 'Erro ao enviar';
+          }
+        }, 'image/jpeg', 0.8);
+        
+      } catch (err) {
+        console.error('Erro captura:', err);
+        alert('Erro ao capturar foto');
+      }
+    });
+
+    /* ================= CRUD ITEMS - CORREÇÃO ================= */
+    // CORREÇÃO: Usar btnSave como botão normal, não submit
+    elementos.btnSave.addEventListener('click', async () => {
+      if (!currentUser) { 
+        alert('Faça login para continuar'); 
+        return; 
+      }
+
+      // Validar campos obrigatórios
+      if (!elementos.numeroPatrimonio.value.trim()) {
+        alert('Preencha o número de patrimônio');
+        elementos.numeroPatrimonio.focus();
+        return;
+      }
+      
+      if (!elementos.equipamento.value.trim()) {
+        alert('Preencha o equipamento');
+        elementos.equipamento.focus();
+        return;
+      }
+      
+      if (!elementos.setor.value.trim()) {
+        alert('Preencha o setor');
+        elementos.setor.focus();
+        return;
+      }
+
+      const item = {
+        id: editingId || 'patrimonio_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+        numeroPatrimonio: elementos.numeroPatrimonio.value.trim(),
+        equipamento: elementos.equipamento.value.trim(),
+        setor: elementos.setor.value.trim(),
+        modelo: elementos.modelo.value.trim(),
+        configuracao: elementos.configuracao.value.trim(),
+        photos: [...tempPhotos],
+        history: [],
+        createdBy: currentUser,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      // Preservar histórico se edição
+      if (editingId) {
+        const existing = window.storage.get('patrimonio:' + editingId);
+        if (existing && existing.value) {
+          try {
+            const parsed = JSON.parse(existing.value);
+            item.history = parsed.history || [];
+            item.createdBy = parsed.createdBy || currentUser;
+            item.createdAt = parsed.createdAt || new Date().toISOString();
+          } catch(e){}
+        }
+      }
+
+      // Salvar no localStorage
+      window.storage.set('patrimonio:' + item.id, JSON.stringify(item));
+      
+      // Resetar formulário
+      editingId = null;
+      elementos.numeroPatrimonio.value = '';
+      elementos.equipamento.value = '';
+      elementos.setor.value = '';
+      elementos.modelo.value = '';
+      elementos.configuracao.value = '';
+      tempPhotos = [];
+      renderPhotoPreview();
+      renderFormDefault();
+      
+      // Recarregar dados e mostrar item
+      loadData();
+      viewItem(item.id);
+      
+      // Feedback visual
+      elementos.uploadStatus.textContent = '✅ Item salvo!';
+      setTimeout(() => elementos.uploadStatus.textContent = 'Nenhuma foto', 3000);
+    });
+
+    elementos.btnCancel.addEventListener('click', () => {
+      resetForm();
+    });
+
+    elementos.btnNew.addEventListener('click', () => {
+      resetForm();
+      elementos.numeroPatrimonio.focus();
+    });
+
+    function resetForm() {
+      elementos.numeroPatrimonio.value = '';
+      elementos.equipamento.value = '';
+      elementos.setor.value = '';
+      elementos.modelo.value = '';
+      elementos.configuracao.value = '';
+      editingId = null;
+      tempPhotos = [];
+      renderPhotoPreview();
+      renderFormDefault();
+    }
+
+    function renderFormDefault() {
+      document.getElementById('formTitle').textContent = '➕ Adicionar item';
+    }
+
+    /* ================= CARREGAR DADOS ================= */
     async function loadData() {
       const result = window.storage.list('patrimonio:');
       const keys = result.keys || [];
       elementos.patrimonioTable.innerHTML = '';
+      elementos.totalCount.textContent = keys.length;
       
       if (keys.length === 0) {
         elementos.patrimonioTable.innerHTML = '<tr><td colspan="5" class="small muted">Nenhum item cadastrado</td></tr>';
@@ -742,44 +676,112 @@
         return;
       }
       
-      // ... resto da função loadData() ...
-      // [Mantenha seu código original aqui]
+      // Ordenar por número de patrimônio
+      const items = [];
+      for (const key of keys) {
+        try {
+          const res = window.storage.get(key);
+          if (!res || !res.value) continue;
+          const item = JSON.parse(res.value);
+          items.push(item);
+        } catch (err) {
+          console.error('Erro item:', err);
+        }
+      }
+      
+      items.sort((a, b) => {
+        const numA = a.numeroPatrimonio || '';
+        const numB = b.numeroPatrimonio || '';
+        return numA.localeCompare(numB, undefined, {numeric: true, sensitivity: 'base'});
+      });
+      
+      // Renderizar tabela
+      items.forEach(item => {
+        const tr = document.createElement('tr');
+
+        const tdNum = document.createElement('td'); 
+        tdNum.textContent = item.numeroPatrimonio || '-';
+        
+        const tdEquip = document.createElement('td'); 
+        tdEquip.textContent = item.equipamento || '-';
+        
+        const tdSetor = document.createElement('td'); 
+        tdSetor.textContent = item.setor || '-';
+        
+        const tdPhotos = document.createElement('td'); 
+        tdPhotos.textContent = (item.photos && item.photos.length) ? 
+          `${item.photos.length} 📷` : '0';
+        
+        const tdActions = document.createElement('td');
+        tdActions.className = 'actions';
+
+        const btnView = document.createElement('button'); 
+        btnView.className = 'btn btn-view'; 
+        btnView.textContent = '👁️ Ver';
+        btnView.addEventListener('click', () => viewItem(item.id));
+        
+        const btnEdit = document.createElement('button'); 
+        btnEdit.className = 'btn btn-edit'; 
+        btnEdit.textContent = '✏️ Editar';
+        btnEdit.addEventListener('click', () => editItem(item.id));
+        
+        const btnHistory = document.createElement('button'); 
+        btnHistory.className = 'btn'; 
+        btnHistory.textContent = '📜 Hist';
+        btnHistory.addEventListener('click', () => openHistory(item.id));
+        
+        const btnDel = document.createElement('button'); 
+        btnDel.className = 'btn btn-del'; 
+        btnDel.textContent = '🗑️ Excluir';
+        btnDel.addEventListener('click', () => {
+          if (confirm(`Excluir "${item.equipamento}" (${item.numeroPatrimonio})?`)) {
+            window.storage.delete('patrimonio:' + item.id);
+            loadData();
+            elementos.viewBox.innerHTML = '<div class="small muted">Item removido</div>';
+            atualizarEstatisticasUI();
+          }
+        });
+
+        tdActions.appendChild(btnView);
+        tdActions.appendChild(btnEdit);
+        tdActions.appendChild(btnHistory);
+        tdActions.appendChild(btnDel);
+
+        tr.appendChild(tdNum);
+        tr.appendChild(tdEquip);
+        tr.appendChild(tdSetor);
+        tr.appendChild(tdPhotos);
+        tr.appendChild(tdActions);
+
+        elementos.patrimonioTable.appendChild(tr);
+      });
       
       atualizarEstatisticasUI();
     }
 
-    // ================= EVENT LISTENERS =================
-    elementos.btnSyncUp.addEventListener('click', salvarBackupNaNuvem);
-    elementos.btnSyncDown.addEventListener('click', restaurarBackupDaNuvem);
-    elementos.closeSync.addEventListener('click', () => elementos.modalSync.classList.add('hide'));
-    elementos.btnLogout.addEventListener('click', () => {
-      currentUser = null;
-      elementos.currentUserBox.classList.add('hide');
-      elementos.btnLogout.classList.add('hide');
-      elementos.btnOpenLogin.classList.remove('hide');
-      showLogin();
-    });
+    function editItem(id) {
+      const res = window.storage.get('patrimonio:' + id);
+      if (!res || !res.value) return alert('Item não encontrado');
+      const item = JSON.parse(res.value);
+      editingId = id;
+      elementos.numeroPatrimonio.value = item.numeroPatrimonio || '';
+      elementos.equipamento.value = item.equipamento || '';
+      elementos.setor.value = item.setor || '';
+      elementos.modelo.value = item.modelo || '';
+      elementos.configuracao.value = item.configuracao || '';
+      tempPhotos = (item.photos && item.photos.slice()) || [];
+      renderPhotoPreview();
+      document.getElementById('formTitle').textContent = '✏️ Editar item';
+      elementos.formArea.classList.remove('hide');
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
 
-    // ================= INICIALIZAÇÃO =================
-    window.addEventListener('DOMContentLoaded', () => {
-      showLogin();
-      
-      // Mostrar último backup se existir
-      const ultimoBackup = localStorage.getItem('ultimo_backup_data');
-      if (ultimoBackup) {
-        atualizarEstatisticasUI();
-      }
-      
-      loadData();
-    });
-
-    // ================= FUNÇÕES QUE FALTAM (simplificadas) =================
     function viewItem(id) {
       try {
         const res = window.storage.get('patrimonio:' + id);
-        if (!res || !res.value) {
-          elementos.viewBox.innerHTML = '<div class="small muted">Item não encontrado</div>';
-          return;
+        if (!res || !res.value) { 
+          elementos.viewBox.innerHTML = '<div class="small muted">Item não encontrado</div>'; 
+          return; 
         }
         
         const item = JSON.parse(res.value);
@@ -790,6 +792,7 @@
                         <p><strong>Setor:</strong> ${escapeHtml(item.setor)}</p>
                         <p><strong>Modelo:</strong> ${escapeHtml(item.modelo || '-')}</p>
                         <p><strong>Configuração:</strong> ${escapeHtml(item.configuracao || '-')}</p>
+                        <p class="small muted">Cadastrado por: ${escapeHtml(item.createdBy || 'admin')} em ${formatDate(item.createdAt)}</p>
                       </div>
                       <div style="width:260px">
                         <strong>Fotos (${item.photos?.length || 0})</strong>
@@ -807,10 +810,144 @@
         
         html += `</div></div></div>`;
         elementos.viewBox.innerHTML = html;
-        
       } catch (err) {
         console.error(err);
         elementos.viewBox.innerHTML = '<div class="small muted">Erro ao abrir item</div>';
+      }
+    }
+
+    /* ================= FUNÇÕES DE BACKUP ================= */
+    async function salvarBackupNaNuvem() {
+      if (!currentUser) {
+        alert('Faça login primeiro');
+        return;
+      }
+      
+      elementos.syncStatus.classList.remove('hide');
+      elementos.syncStatus.textContent = '🔄 Criando backup...';
+      
+      try {
+        const result = window.storage.list('patrimonio:');
+        const keys = result.keys || [];
+        const todosItens = [];
+        
+        for (const key of keys) {
+          const res = window.storage.get(key);
+          if (res && res.value) {
+            todosItens.push(JSON.parse(res.value));
+          }
+        }
+        
+        if (todosItens.length === 0) {
+          elementos.syncStatus.textContent = '⚠ Nenhum item para backup';
+          setTimeout(() => elementos.syncStatus.classList.add('hide'), 3000);
+          return;
+        }
+        
+        const backupData = {
+          app: 'Sistema Patrimônio',
+          timestamp: new Date().toISOString(),
+          usuario: currentUser,
+          totalItens: todosItens.length,
+          totalFotos: todosItens.reduce((total, item) => total + (item.photos?.length || 0), 0),
+          itens: todosItens
+        };
+        
+        const jsonString = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        
+        elementos.syncStatus.textContent = '🔄 Enviando para Cloudinary...';
+        lastBackupUrl = await uploadParaCloudinary(blob, 'backup');
+        
+        localStorage.setItem('ultimo_backup_url', lastBackupUrl);
+        localStorage.setItem('ultimo_backup_data', new Date().toISOString());
+        localStorage.setItem('ultimo_backup_itens', todosItens.length.toString());
+        
+        elementos.syncStatus.textContent = `✅ Backup criado! ${todosItens.length} itens`;
+        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
+        
+        mostrarModalSync(`
+          <div style="color: #28a745;">
+            <h4>✅ Backup concluído!</h4>
+            <p><strong>${todosItens.length}</strong> itens salvos</p>
+            <p><strong>${new Date().toLocaleString('pt-BR')}</strong></p>
+          </div>
+        `);
+        
+        return lastBackupUrl;
+        
+      } catch (erro) {
+        console.error('❌ Erro no backup:', erro);
+        elementos.syncStatus.textContent = '❌ Erro no backup';
+        
+        mostrarModalSync(`
+          <div style="color: #dc3545;">
+            <h4>❌ Erro no backup</h4>
+            <p>${erro.message}</p>
+          </div>
+        `);
+        
+        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
+        return null;
+      }
+    }
+
+    function mostrarModalSync(conteudo) {
+      elementos.syncInfo.innerHTML = conteudo;
+      elementos.modalSync.classList.remove('hide');
+    }
+
+    function atualizarEstatisticasUI() {
+      const result = window.storage.list('patrimonio:');
+      const keys = result.keys || [];
+      let totalFotos = 0;
+      let totalItens = keys.length;
+      
+      for (const key of keys) {
+        const res = window.storage.get(key);
+        if (res && res.value) {
+          const item = JSON.parse(res.value);
+          totalFotos += (item.photos?.length || 0);
+        }
+      }
+      
+      elementos.totalCount.textContent = totalItens;
+      elementos.totalFotos.textContent = `${totalFotos} fotos`;
+      
+      const ultimoBackup = localStorage.getItem('ultimo_backup_data');
+      if (ultimoBackup) {
+        const dataFormatada = new Date(ultimoBackup).toLocaleString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        elementos.syncStatus.innerHTML = `📊 ${totalItens} itens | 📷 ${totalFotos} fotos | 🔄 ${dataFormatada}`;
+        elementos.syncStatus.classList.remove('hide');
+      }
+    }
+
+    /* ================= EVENT LISTENERS ================= */
+    elementos.btnSyncUp.addEventListener('click', salvarBackupNaNuvem);
+    elementos.btnSyncDown.addEventListener('click', async () => {
+      alert('Função de restauração em desenvolvimento');
+    });
+    elementos.closeSync.addEventListener('click', () => elementos.modalSync.classList.add('hide'));
+    elementos.closeHistory.addEventListener('click', () => elementos.modalHistory.classList.add('hide'));
+
+    // Prevenir submit no formulário de manutenção
+    elementos.maintenanceForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert('Funcionalidade de histórico em desenvolvimento');
+    });
+
+    /* ================= UTILIDADES ================= */
+    function formatDate(dateString) {
+      try {
+        const d = new Date(dateString);
+        return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR').substring(0, 5);
+      } catch { 
+        return dateString; 
       }
     }
 
@@ -824,9 +961,17 @@
         .replaceAll("'", '&#039;');
     }
 
-    console.log('✅ Sistema Patrimônio carregado com backup Cloudinary!');
-    console.log('📋 Preset fotos:', UPLOAD_PRESET_FOTOS);
-    console.log('📋 Preset backup:', UPLOAD_PRESET_BACKUP);
+    function openHistory(id) {
+      alert('Funcionalidade de histórico em desenvolvimento');
+    }
+
+    /* ================= INICIALIZAÇÃO ================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      checkLoginStatus();
+      renderFormDefault();
+    });
+
+    console.log('✅ Sistema Patrimônio carregado!');
   </script>
 </body>
 </html>
