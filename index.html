@@ -73,6 +73,10 @@
       -moz-osx-font-smoothing: grayscale;
     }
 
+    .hide {
+      display: none !important;
+    }
+
     /* ========== TYPOGRAPHY ========== */
     h1, h2, h3, h4, h5, h6 {
       font-weight: 600;
@@ -739,6 +743,82 @@
       font-size: 0.875rem;
       opacity: 0.9;
     }
+
+    /* ========== VIEW ITEM STYLES ========== */
+    .item-details {
+      padding: 16px;
+    }
+
+    .detail-group {
+      margin-bottom: 20px;
+    }
+
+    .detail-label {
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-size: 0.875rem;
+    }
+
+    .detail-value {
+      color: var(--dark);
+      padding: 8px 0;
+    }
+
+    .photos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .history-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .history-item {
+      padding: 12px;
+      border-left: 3px solid var(--primary);
+      background: var(--light);
+      margin-bottom: 8px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    }
+
+    .history-date {
+      font-weight: 600;
+      color: var(--primary);
+      font-size: 0.875rem;
+    }
+
+    .history-desc {
+      margin-top: 4px;
+      color: var(--dark);
+    }
+
+    /* ========== LOGIN SPECIFIC ========== */
+    .login-container {
+      max-width: 400px;
+      margin: 60px auto;
+    }
+
+    .login-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .login-icon {
+      font-size: 48px;
+      color: var(--primary);
+      margin-bottom: 16px;
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
   </style>
 </head>
 <body>
@@ -749,7 +829,7 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-content">
-        <a href="#" class="logo">
+        <div class="logo">
           <div class="logo-icon">
             <i class="fas fa-boxes-stacked"></i>
           </div>
@@ -757,7 +837,7 @@
             <span class="logo-title">Patrimônio EETI</span>
             <span class="logo-subtitle">Sistema de Gestão Completo</span>
           </div>
-        </a>
+        </div>
 
         <div class="header-controls">
           <div id="onlineStatus" class="status-badge status-offline">
@@ -768,11 +848,6 @@
           <div id="syncStatus" class="status-badge status-syncing hide">
             <i class="fas fa-sync-alt"></i>
             <span>Sincronizando...</span>
-          </div>
-
-          <div id="currentUserBox" class="text-muted hide">
-            <i class="fas fa-user"></i>
-            <span id="currentUser">admin</span>
           </div>
 
           <button class="btn btn-sm btn-ghost" id="btnForceSync" title="Sincronizar agora">
@@ -798,118 +873,127 @@
 
     <!-- Main Content -->
     <main class="main-content">
-      <!-- Left Panel - Form -->
-      <section>
-        <div class="card" id="authArea">
-          <div id="loginBox">
-            <div class="card-header">
-              <h3 class="card-title">
-                <i class="fas fa-lock"></i>
-                Acesso ao Sistema
-              </h3>
+      <!-- Left Panel - Login/Form -->
+      <section id="leftPanel">
+        <!-- Login Screen -->
+        <div class="card login-container" id="loginCard">
+          <div class="login-header">
+            <div class="login-icon">
+              <i class="fas fa-lock"></i>
+            </div>
+            <h2>Acesso ao Sistema</h2>
+            <p class="text-muted">Faça login para gerenciar o patrimônio</p>
+          </div>
+          
+          <div id="loginError" class="status-badge status-offline hide" style="margin-bottom: 16px;"></div>
+          
+          <form id="loginForm">
+            <div class="form-group">
+              <label class="form-label">Usuário</label>
+              <input type="text" id="username" class="form-control" placeholder="Digite seu usuário" value="admin" autocomplete="username">
             </div>
             
-            <div id="loginError" class="status-badge status-error hide"></div>
+            <div class="form-group">
+              <label class="form-label">Senha</label>
+              <input type="password" id="password" class="form-control" placeholder="Digite sua senha" value="admin123" autocomplete="current-password">
+            </div>
             
-            <form id="loginForm">
-              <div class="form-group">
-                <label class="form-label">Usuário</label>
-                <input type="text" id="username" class="form-control" placeholder="Digite seu usuário" value="admin">
-              </div>
-              
-              <div class="form-group">
-                <label class="form-label">Senha</label>
-                <input type="password" id="password" class="form-control" placeholder="Digite sua senha" value="admin123">
-              </div>
-              
-              <div class="form-group">
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                  <i class="fas fa-sign-in-alt"></i>
-                  Entrar no Sistema
-                </button>
-              </div>
-              
-              <div class="text-center text-muted">
-                <small>Credenciais padrão: admin / admin123</small>
-              </div>
-            </form>
+            <div class="form-group">
+              <button type="submit" class="btn btn-primary" style="width: 100%;">
+                <i class="fas fa-sign-in-alt"></i>
+                Entrar no Sistema
+              </button>
+            </div>
+          </form>
+          
+          <div class="login-footer">
+            <div class="form-group">
+              <button type="button" id="btnFillDemo" class="btn btn-ghost" style="width: 100%;">
+                <i class="fas fa-magic"></i>
+                Usar Credenciais de Demonstração
+              </button>
+            </div>
+            <p class="text-small text-muted">
+              Sistema de patrimônio escolar - Versão 2.0
+            </p>
+          </div>
+        </div>
+
+        <!-- Form Area (hidden by default) -->
+        <div class="card" id="formArea" class="hide">
+          <div class="card-header">
+            <h3 class="card-title" id="formTitle">
+              <i class="fas fa-plus"></i>
+              Novo Item
+            </h3>
+            <div class="text-muted" id="photoCounter">0/10 fotos</div>
           </div>
 
-          <div id="formArea" class="hide">
-            <div class="card-header">
-              <h3 class="card-title" id="formTitle">
-                <i class="fas fa-plus"></i>
-                Novo Item
-              </h3>
-              <div class="text-muted" id="photoCounter">0/10 fotos</div>
+          <div id="patrimonioForm">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Nº Patrimônio *</label>
+                <input type="text" id="numeroPatrimonio" class="form-control" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Equipamento *</label>
+                <input type="text" id="equipamento" class="form-control" required>
+              </div>
             </div>
 
-            <form id="patrimonioForm">
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Nº Patrimônio *</label>
-                  <input type="text" id="numeroPatrimonio" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Equipamento *</label>
-                  <input type="text" id="equipamento" class="form-control" required>
-                </div>
-              </div>
-
-              <div class="form-row">
-                <div class="form-group">
-                  <label class="form-label">Setor *</label>
-                  <input type="text" id="setor" class="form-control" required>
-                </div>
-                <div class="form-group">
-                  <label class="form-label">Modelo</label>
-                  <input type="text" id="modelo" class="form-control">
-                </div>
-              </div>
-
+            <div class="form-row">
               <div class="form-group">
-                <label class="form-label">Configuração</label>
-                <textarea id="configuracao" class="form-control" rows="3"></textarea>
+                <label class="form-label">Setor *</label>
+                <input type="text" id="setor" class="form-control" required>
               </div>
-
               <div class="form-group">
-                <label class="form-label">Fotos do Equipamento</label>
-                <div class="photo-upload-area">
-                  <i class="fas fa-camera fa-2x text-muted" style="margin-bottom: 12px;"></i>
-                  <p class="text-muted">Arraste fotos ou clique para selecionar</p>
-                  <div class="photo-actions" style="margin-top: 12px;">
-                    <label class="btn btn-sm btn-ghost" style="margin-right: 8px;">
-                      <i class="fas fa-upload"></i>
-                      Upload
-                      <input type="file" id="fileInput" accept="image/*" multiple class="hide">
-                    </label>
-                    <button type="button" id="btnOpenCamera" class="btn btn-sm btn-info">
-                      <i class="fas fa-camera"></i>
-                      Câmera
-                    </button>
-                  </div>
-                </div>
-                <div id="photoPreview" class="photo-preview"></div>
-                <div id="uploadStatus" class="text-small text-muted" style="margin-top: 8px;"></div>
+                <label class="form-label">Modelo</label>
+                <input type="text" id="modelo" class="form-control">
               </div>
+            </div>
 
-              <div class="form-group" style="margin-top: 24px;">
-                <div class="form-row">
-                  <button type="button" id="btnSave" class="btn btn-primary">
-                    <i class="fas fa-save"></i>
-                    Salvar Item
-                  </button>
-                  <button type="button" id="btnCancel" class="btn btn-ghost">
-                    <i class="fas fa-times"></i>
-                    Cancelar
-                  </button>
-                  <button type="button" id="btnNew" class="btn btn-ghost">
-                    <i class="fas fa-plus"></i>
-                    Novo
+            <div class="form-group">
+              <label class="form-label">Configuração</label>
+              <textarea id="configuracao" class="form-control" rows="3"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Fotos do Equipamento</label>
+              <div class="photo-upload-area">
+                <i class="fas fa-camera fa-2x text-muted" style="margin-bottom: 12px;"></i>
+                <p class="text-muted">Arraste fotos ou clique para selecionar</p>
+                <div class="photo-actions" style="margin-top: 12px;">
+                  <label class="btn btn-sm btn-ghost" style="margin-right: 8px;">
+                    <i class="fas fa-upload"></i>
+                    Upload
+                    <input type="file" id="fileInput" accept="image/*" multiple class="hide">
+                  </label>
+                  <button type="button" id="btnOpenCamera" class="btn btn-sm btn-info">
+                    <i class="fas fa-camera"></i>
+                    Câmera
                   </button>
                 </div>
               </div>
-            </form>
+              <div id="photoPreview" class="photo-preview"></div>
+              <div id="uploadStatus" class="text-small text-muted" style="margin-top: 8px;"></div>
+            </div>
+
+            <div class="form-group" style="margin-top: 24px;">
+              <div class="form-row">
+                <button type="button" id="btnSave" class="btn btn-primary">
+                  <i class="fas fa-save"></i>
+                  Salvar Item
+                </button>
+                <button type="button" id="btnCancel" class="btn btn-ghost">
+                  <i class="fas fa-times"></i>
+                  Cancelar
+                </button>
+                <button type="button" id="btnNew" class="btn btn-ghost">
+                  <i class="fas fa-plus"></i>
+                  Novo
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -964,7 +1048,7 @@
                 <tr>
                   <td colspan="5" class="text-center text-muted" style="padding: 48px;">
                     <i class="fas fa-inbox fa-2x" style="margin-bottom: 16px; opacity: 0.3;"></i>
-                    <p>Nenhum item cadastrado</p>
+                    <p>Faça login para visualizar os itens</p>
                   </td>
                 </tr>
               </tbody>
@@ -1027,8 +1111,8 @@
       </div>
       <div class="modal-body">
         <div class="form-group">
-          <div class="card" style="background: var(--light);">
-            <strong id="historyItemTitle"></strong>
+          <div class="card" style="background: var(--light); padding: 16px;">
+            <strong id="historyItemTitle">Carregando...</strong>
           </div>
         </div>
         
@@ -1081,488 +1165,3 @@
       storageBucket: "sis-eetibkp.firebasestorage.app",
       messagingSenderId: "524123050144",
       appId: "1:524123050144:web:79fba6107cf073118679c5"
-    };
-
-    const CLOUD_NAME = 'dwanrvvob';
-    const UPLOAD_PRESET_FOTOS = 'EETI_fotos';
-    const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`;
-    const users = { admin: 'admin123' };
-    const MAX_PHOTOS_PER_ITEM = 10;
-
-    // ================= VARIÁVEIS GLOBAIS =================
-    let db = null;
-    let unsubscribeItems = null;
-    let currentUser = localStorage.getItem('currentUser') || null;
-    let tempPhotos = [];
-    let editingId = null;
-    let cameraStream = null;
-    let currentHistoryItemId = null;
-
-    // ================= INICIALIZAÇÃO =================
-    document.addEventListener('DOMContentLoaded', async function() {
-      // Configurar tema
-      const savedTheme = localStorage.getItem('theme') || 'light';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      updateThemeIcon(savedTheme);
-      
-      // Inicializar Firebase
-      await initFirebase();
-      
-      // Verificar autenticação
-      checkAuth();
-      
-      // Configurar event listeners
-      setupEventListeners();
-      
-      // Animações iniciais
-      setTimeout(() => {
-        document.body.style.opacity = 1;
-      }, 100);
-    });
-
-    // ================= TEMA =================
-    document.getElementById('themeToggle').addEventListener('click', function() {
-      const currentTheme = document.documentElement.getAttribute('data-theme');
-      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-      
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('theme', newTheme);
-      updateThemeIcon(newTheme);
-      
-      showToast(`Tema ${newTheme === 'light' ? 'claro' : 'escuro'} ativado`, 'success');
-    });
-
-    function updateThemeIcon(theme) {
-      const icon = document.querySelector('#themeToggle i');
-      icon.className = theme === 'light' ? 'fas fa-moon' : 'fas fa-sun';
-    }
-
-    // ================= FIREBASE =================
-    async function initFirebase() {
-      try {
-        firebase.initializeApp(firebaseConfig);
-        db = firebase.firestore();
-        
-        await firebase.firestore().enablePersistence()
-          .catch(err => console.warn('Persistência não disponível:', err.code));
-        
-        updateOnlineStatus(true);
-        showToast('Conectado ao servidor', 'success');
-        
-      } catch (error) {
-        console.error('❌ Erro Firebase:', error);
-        updateOnlineStatus(false);
-        showToast('Modo offline ativado', 'warning');
-      }
-    }
-
-    // ================= TOAST NOTIFICATIONS =================
-    function showToast(message, type = 'info', duration = 3000) {
-      const toastContainer = document.getElementById('toastContainer');
-      const toast = document.createElement('div');
-      toast.className = `toast toast-${type}`;
-      
-      const icons = {
-        success: 'fas fa-check-circle',
-        error: 'fas fa-exclamation-circle',
-        warning: 'fas fa-exclamation-triangle',
-        info: 'fas fa-info-circle'
-      };
-      
-      toast.innerHTML = `
-        <i class="${icons[type]}" style="color: var(--${type});"></i>
-        <span>${message}</span>
-      `;
-      
-      toastContainer.appendChild(toast);
-      
-      setTimeout(() => {
-        toast.style.animation = 'slideIn 0.3s ease reverse forwards';
-        setTimeout(() => toast.remove(), 300);
-      }, duration);
-    }
-
-    // ================= UI FUNCTIONS =================
-    function showLogin() {
-      document.getElementById('loginBox').classList.remove('hide');
-      document.getElementById('formArea').classList.add('hide');
-      document.getElementById('statsArea').classList.add('hide');
-      document.getElementById('btnOpenLogin').classList.add('hide');
-      document.getElementById('btnLogout').classList.add('hide');
-      document.getElementById('currentUserBox').classList.add('hide');
-    }
-    
-    function showAppUI() {
-      document.getElementById('loginBox').classList.add('hide');
-      document.getElementById('formArea').classList.remove('hide');
-      document.getElementById('statsArea').classList.remove('hide');
-      document.getElementById('currentUser').textContent = currentUser;
-      document.getElementById('currentUserBox').classList.remove('hide');
-      document.getElementById('btnLogout').classList.remove('hide');
-      document.getElementById('btnOpenLogin').classList.add('hide');
-      
-      // Carregar dados
-      startRealtimeSync();
-    }
-
-    function updateOnlineStatus(isOnline) {
-      const statusEl = document.getElementById('onlineStatus');
-      if (isOnline) {
-        statusEl.innerHTML = '<i class="fas fa-wifi"></i><span>Online</span>';
-        statusEl.className = 'status-badge status-online';
-      } else {
-        statusEl.innerHTML = '<i class="fas fa-wifi-slash"></i><span>Offline</span>';
-        statusEl.className = 'status-badge status-offline';
-      }
-    }
-
-    function showSyncStatus(message) {
-      const syncEl = document.getElementById('syncStatus');
-      if (message) {
-        syncEl.innerHTML = `<i class="fas fa-sync-alt"></i><span>${message}</span>`;
-        syncEl.classList.remove('hide');
-        
-        if (message.includes('✅')) {
-          setTimeout(() => syncEl.classList.add('hide'), 2000);
-        }
-      } else {
-        syncEl.classList.add('hide');
-      }
-    }
-
-    // ================= EVENT LISTENERS =================
-    function setupEventListeners() {
-      // Login
-      document.getElementById('loginForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const user = document.getElementById('username').value.trim();
-        const pass = document.getElementById('password').value.trim();
-        
-        if (users[user] && users[user] === pass) {
-          currentUser = user;
-          localStorage.setItem('currentUser', user);
-          showAppUI();
-          showToast(`Bem-vindo, ${user}!`, 'success');
-        } else {
-          showToast('Usuário ou senha incorretos', 'error');
-        }
-      });
-
-      // Logout
-      document.getElementById('btnLogout').addEventListener('click', function() {
-        currentUser = null;
-        localStorage.removeItem('currentUser');
-        if (unsubscribeItems) unsubscribeItems();
-        showLogin();
-        showToast('Sessão encerrada', 'info');
-      });
-
-      // Force Sync
-      document.getElementById('btnForceSync').addEventListener('click', async function() {
-        showSyncStatus('Sincronizando...');
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        showSyncStatus('✅ Sincronizado');
-      });
-
-      // Save Item
-      document.getElementById('btnSave').addEventListener('click', async function() {
-        if (!validateForm()) return;
-        
-        const item = {
-          id: editingId || 'item_' + Date.now(),
-          numeroPatrimonio: document.getElementById('numeroPatrimonio').value.trim(),
-          equipamento: document.getElementById('equipamento').value.trim(),
-          setor: document.getElementById('setor').value.trim(),
-          modelo: document.getElementById('modelo').value.trim(),
-          configuracao: document.getElementById('configuracao').value.trim(),
-          photos: [...tempPhotos],
-          history: [],
-          createdBy: currentUser,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-        
-        // Simulação de salvamento
-        showSyncStatus('Salvando...');
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        resetForm();
-        showToast('Item salvo com sucesso!', 'success');
-        showSyncStatus('✅ Salvo');
-        
-        // Adicionar à tabela (simulação)
-        addItemToTable(item);
-      });
-
-      // Form Actions
-      document.getElementById('btnCancel').addEventListener('click', resetForm);
-      document.getElementById('btnNew').addEventListener('click', resetForm);
-
-      // File Upload
-      document.getElementById('fileInput').addEventListener('change', async function(e) {
-        const files = Array.from(e.target.files || []);
-        for (const file of files) {
-          if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
-            showToast(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido`, 'warning');
-            break;
-          }
-          
-          // Simular upload
-          const mockUrl = `https://picsum.photos/seed/${Date.now()}/400/300`;
-          tempPhotos.push(mockUrl);
-          renderPhotoPreview();
-          showToast('Foto carregada com sucesso', 'success');
-        }
-        this.value = '';
-      });
-
-      // Camera
-      document.getElementById('btnOpenCamera').addEventListener('click', function() {
-        document.getElementById('cameraModal').classList.add('active');
-      });
-
-      document.getElementById('btnCloseCamera').addEventListener('click', function() {
-        document.getElementById('cameraModal').classList.remove('active');
-      });
-
-      document.getElementById('btnCapture').addEventListener('click', function() {
-        if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
-          showToast(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido`, 'warning');
-          return;
-        }
-        
-        const mockUrl = `https://picsum.photos/seed/${Date.now()}/400/300`;
-        tempPhotos.push(mockUrl);
-        renderPhotoPreview();
-        document.getElementById('cameraModal').classList.remove('active');
-        showToast('Foto capturada com sucesso!', 'success');
-      });
-
-      // Fechar modais ao clicar fora
-      document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', function(e) {
-          if (e.target === this) {
-            this.classList.remove('active');
-          }
-        });
-      });
-
-      // Tecla ESC para fechar modais
-      document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-          document.querySelectorAll('.modal.active').forEach(modal => {
-            modal.classList.remove('active');
-          });
-        }
-      });
-    }
-
-    // ================= FORM FUNCTIONS =================
-    function validateForm() {
-      const fields = ['numeroPatrimonio', 'equipamento', 'setor'];
-      let isValid = true;
-      
-      fields.forEach(field => {
-        const input = document.getElementById(field);
-        if (!input.value.trim()) {
-          input.style.borderColor = 'var(--danger)';
-          isValid = false;
-          showToast(`Preencha o campo "${input.previousElementSibling.textContent}"`, 'error');
-        } else {
-          input.style.borderColor = '';
-        }
-      });
-      
-      return isValid;
-    }
-
-    function resetForm() {
-      document.getElementById('formTitle').innerHTML = '<i class="fas fa-plus"></i> Novo Item';
-      document.getElementById('numeroPatrimonio').value = '';
-      document.getElementById('equipamento').value = '';
-      document.getElementById('setor').value = '';
-      document.getElementById('modelo').value = '';
-      document.getElementById('configuracao').value = '';
-      editingId = null;
-      tempPhotos = [];
-      renderPhotoPreview();
-    }
-
-    function renderPhotoPreview() {
-      const container = document.getElementById('photoPreview');
-      const counter = document.getElementById('photoCounter');
-      
-      container.innerHTML = '';
-      counter.textContent = `${tempPhotos.length}/${MAX_PHOTOS_PER_ITEM} fotos`;
-      
-      if (tempPhotos.length === 0) {
-        container.innerHTML = '<div class="text-center text-muted" style="grid-column: 1/-1; padding: 20px;">Nenhuma foto adicionada</div>';
-        return;
-      }
-      
-      tempPhotos.forEach((url, index) => {
-        const div = document.createElement('div');
-        div.className = 'photo-item';
-        div.innerHTML = `
-          <img src="${url}" alt="Foto ${index + 1}">
-          <button class="photo-remove" onclick="removePhoto(${index})">
-            <i class="fas fa-times"></i>
-          </button>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    window.removePhoto = function(index) {
-      tempPhotos.splice(index, 1);
-      renderPhotoPreview();
-      showToast('Foto removida', 'info');
-    };
-
-    // ================= TABLE FUNCTIONS =================
-    function addItemToTable(item) {
-      const table = document.querySelector('#patrimonioTable tbody');
-      
-      // Se estiver vazio, remover mensagem
-      if (table.children.length === 1 && table.children[0].children.length === 1) {
-        table.innerHTML = '';
-      }
-      
-      const row = document.createElement('tr');
-      row.innerHTML = `
-        <td><strong>${escapeHtml(item.numeroPatrimonio)}</strong></td>
-        <td>${escapeHtml(item.equipamento)}</td>
-        <td>${escapeHtml(item.setor)}</td>
-        <td>${item.photos.length} <i class="fas fa-camera text-muted"></i></td>
-        <td>
-          <div class="action-buttons">
-            <button class="btn btn-sm btn-primary" onclick="viewItem('${item.id}')">
-              <i class="fas fa-eye"></i>
-            </button>
-            <button class="btn btn-sm btn-warning" onclick="editItem('${item.id}')">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="btn btn-sm btn-info" onclick="openHistory('${item.id}')">
-              <i class="fas fa-history"></i>
-            </button>
-            <button class="btn btn-sm btn-danger" onclick="deleteItem('${item.id}')">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </td>
-      `;
-      
-      table.insertBefore(row, table.firstChild);
-      updateStats();
-    }
-
-    function updateStats() {
-      const rows = document.querySelectorAll('#patrimonioTable tbody tr');
-      const totalItems = rows.length;
-      let totalPhotos = 0;
-      
-      rows.forEach(row => {
-        const photoCount = parseInt(row.children[3].textContent) || 0;
-        totalPhotos += photoCount;
-      });
-      
-      document.getElementById('totalCount').textContent = totalItems;
-      document.getElementById('totalFotos').textContent = totalPhotos;
-      document.getElementById('filterCount').textContent = totalItems;
-    }
-
-    // ================= UTILITY FUNCTIONS =================
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.textContent = text;
-      return div.innerHTML;
-    }
-
-    function formatDate(dateString) {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-    }
-
-    // ================= MOCK FUNCTIONS (para demonstração) =================
-    function checkAuth() {
-      if (currentUser) {
-        showAppUI();
-        // Adicionar alguns itens de exemplo
-        setTimeout(() => {
-          const mockItems = [
-            {
-              id: '1',
-              numeroPatrimonio: 'PC-001',
-              equipamento: 'Computador Dell',
-              setor: 'Laboratório 1',
-              modelo: 'OptiPlex 3080',
-              configuracao: 'i5, 8GB RAM, SSD 256GB',
-              photos: ['https://picsum.photos/seed/1/400/300'],
-              createdBy: 'admin',
-              createdAt: '2024-01-15T10:30:00Z',
-              updatedAt: '2024-01-15T10:30:00Z'
-            },
-            {
-              id: '2',
-              numeroPatrimonio: 'NB-002',
-              equipamento: 'Notebook HP',
-              setor: 'Administração',
-              modelo: 'ProBook 450 G8',
-              configuracao: 'i7, 16GB RAM, SSD 512GB',
-              photos: ['https://picsum.photos/seed/2/400/300', 'https://picsum.photos/seed/3/400/300'],
-              createdBy: 'admin',
-              createdAt: '2024-01-10T14:20:00Z',
-              updatedAt: '2024-01-10T14:20:00Z'
-            },
-            {
-              id: '3',
-              numeroPatrimonio: 'PR-003',
-              equipamento: 'Projetor Epson',
-              setor: 'Auditório',
-              modelo: 'EB-E01',
-              configuracao: 'Full HD, 3200 lumens',
-              photos: [],
-              createdBy: 'admin',
-              createdAt: '2024-01-05T09:15:00Z',
-              updatedAt: '2024-01-05T09:15:00Z'
-            }
-          ];
-          
-          mockItems.forEach(item => addItemToTable(item));
-        }, 500);
-      } else {
-        showLogin();
-      }
-    }
-
-    // Funções de exemplo
-    window.viewItem = function(id) {
-      showToast('Visualizando item ' + id, 'info');
-    };
-
-    window.editItem = function(id) {
-      showToast('Editando item ' + id, 'warning');
-    };
-
-    window.openHistory = function(id) {
-      document.getElementById('modalHistory').classList.add('active');
-      document.getElementById('historyItemTitle').textContent = 'Item #' + id;
-    };
-
-    window.deleteItem = function(id) {
-      if (confirm('Tem certeza que deseja excluir este item?')) {
-        showToast('Item excluído com sucesso', 'success');
-      }
-    };
-
-    // Firebase functions (simplificadas para demonstração)
-    function startRealtimeSync() {
-      console.log('🔄 Sincronização em tempo real iniciada');
-    }
-
-    // Estilo inicial
-    document.body.style.opacity = 0;
-    document.body.style.transition = 'opacity 0.3s ease';
-  </script>
-</body>
-</html>
