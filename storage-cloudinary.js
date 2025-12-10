@@ -7,7 +7,7 @@ async function compressImageToBase64(fileOrBlob, maxKB = 100) {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
 
-      const MAX_WIDTH = 1024;
+      const MAX_WIDTH = 1280;
       const ratio = MAX_WIDTH / img.width;
 
       canvas.width = MAX_WIDTH;
@@ -22,7 +22,7 @@ async function compressImageToBase64(fileOrBlob, maxKB = 100) {
         const sizeKB = Math.round((base64.length * 0.75) / 1024);
 
         if (sizeKB <= maxKB || quality <= 0.2) {
-          resolve(base64.replace(/^data:image\/jpeg;base64,/, ""));
+          resolve(base64);
         } else {
           quality -= 0.1;
           tryCompress();
@@ -36,28 +36,30 @@ async function compressImageToBase64(fileOrBlob, maxKB = 100) {
   });
 }
 
-
-async function uploadImageToImageKit(blobOriginal) {
+async function uploadImageCloudinary(blobOriginal) {
   const compressedBase64 = await compressImageToBase64(blobOriginal, 100);
+
+  const cloudName = "root"; // <<<<<< SOMENTE ISSO
+  const uploadPreset = "unsigned_patrimonio"; // <<<< ESTE É O NOME DO PRESET
 
   const formData = new FormData();
   formData.append("file", compressedBase64);
-  formData.append("fileName", "foto_" + Date.now() + ".jpg");
-  formData.append("publicKey", "public_pv4335DWuuh9X5Gj/mPWOkQIDPg=");
-  formData.append("folder", "/produtos");
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", "produtos");
 
-  const urlEndpoint = "https://ik.imagekit.io/vvvvv";
-
-  const response = await fetch(urlEndpoint + "/api/v1/files/upload", {
+  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
     method: "POST",
     body: formData
   });
 
   const data = await response.json();
 
-  if (!data.url) throw new Error("Falha no upload ImageKit");
+  if (!data.secure_url) {
+    console.error(data);
+    throw new Error("Erro ao enviar para Cloudinary");
+  }
 
-  return data.url;
+  return data.secure_url;
 }
 
-window.uploadImageToImageKit = uploadImageToImageKit;
+window.uploadImageCloudinary = uploadImageCloudinary;
