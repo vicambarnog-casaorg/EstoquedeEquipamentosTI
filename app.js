@@ -1,297 +1,330 @@
-// app.js
-(function(){
-  // UI refs
-  const loginBox = document.getElementById('loginBox');
-  const btnLogin = document.getElementById('btnLogin');
-  const btnDemo = document.getElementById('btnDemo');
-  const emailInput = document.getElementById('emailLogin');
-  const passInput = document.getElementById('senhaLogin');
-  const loginMsg = document.getElementById('loginMsg');
+console.log("app.js carregado");
 
-  const appLayout = document.getElementById('appLayout');
-  const sidebarUser = document.getElementById('sidebarUser');
-  const btnLogout = document.getElementById('btnLogout');
+// ELEMENTOS PRINCIPAIS
+const loginBox = document.getElementById("loginBox");
+const appLayout = document.getElementById("appLayout");
 
-  const productTableBody = document.getElementById('productTableBody');
-  const statItems = document.getElementById('statItems');
-  const statPhotos = document.getElementById('statPhotos');
-  const statUser = document.getElementById('statUser');
+// Login inputs
+const emailLogin = document.getElementById("emailLogin");
+const senhaLogin = document.getElementById("senhaLogin");
+const btnLogin = document.getElementById("btnLogin");
+const btnDemo = document.getElementById("btnDemo");
+const loginMsg = document.getElementById("loginMsg");
 
-  const btnNewProduct = document.getElementById('btnNewProduct');
-  const productFormModal = document.getElementById('productFormModal');
-  const closeFormBtn = document.getElementById('closeFormBtn');
-  const numeroInput = document.getElementById('numeroInput');
-  const equipamentoInput = document.getElementById('equipamentoInput');
-  const setorInput = document.getElementById('setorInput');
-  const openCameraBtn = document.getElementById('openCameraBtn');
-  const selectFilesBtn = document.getElementById('selectFilesBtn');
-  const fileInput = document.getElementById('fileInput');
-  const stagedPreview = document.getElementById('stagedPreview');
-  const saveProductBtn = document.getElementById('saveProductBtn');
+// Sidebar
+const sidebarUser = document.getElementById("sidebarUser");
+const btnOpenLogin = document.getElementById("btnOpenLogin");
+const btnLogout = document.getElementById("btnLogout");
 
-  const productDetailCard = document.getElementById('productDetailCard');
-  const detailTitle = document.getElementById('detailTitle');
-  const detailSubtitle = document.getElementById('detailSubtitle');
-  const detailPhotos = document.getElementById('detailPhotos');
-  const btnAddPhoto = document.getElementById('btnAddPhoto');
-  const btnAddMaint = document.getElementById('btnAddMaint');
-  const maintenanceList = document.getElementById('maintenanceList');
+// Navegação
+const navProducts = document.getElementById("navProducts");
+const navSettings = document.getElementById("navSettings");
 
-  // modals camera & maintenance
-  const cameraModal = document.getElementById('cameraModal');
-  const captureBtn = document.getElementById('captureBtn');
-  const closeCameraBtn = document.getElementById('closeCameraBtn');
-  const maintModal = document.getElementById('maintModal');
-  const closeMaintBtn = document.getElementById('closeMaintBtn');
-  const saveMaintBtn = document.getElementById('saveMaintBtn');
-  const maintDate = document.getElementById('maintDate');
-  const maintDesc = document.getElementById('maintDesc');
+// Dashboard topo
+const pageTitle = document.getElementById("pageTitle");
+const productCount = document.getElementById("productCount");
+const statItems = document.getElementById("statItems");
+const statPhotos = document.getElementById("statPhotos");
+const statUser = document.getElementById("statUser");
+const btnNewProduct = document.getElementById("btnNewProduct");
 
-  // state
-  let currentUser = null;
-  let productsUnsub = null;
-  let stagedFiles = [];
-  let currentProductId = null;
+// Lista
+const productTableBody = document.getElementById("productTableBody");
+const listCard = document.getElementById("listCard");
 
-  // helper show/hide
-  function show(el){ el.classList.remove('hidden'); }
-  function hide(el){ el.classList.add('hidden'); }
-  function showModal(el){ el.classList.add('show'); el.setAttribute('aria-hidden','false'); }
-  function hideModal(el){ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); }
+// Form modal
+const productFormModal = document.getElementById("productFormModal");
+const closeFormBtn = document.getElementById("closeFormBtn");
+const numeroInput = document.getElementById("numeroInput");
+const equipamentoInput = document.getElementById("equipamentoInput");
+const setorInput = document.getElementById("setorInput");
+const openCameraBtn = document.getElementById("openCameraBtn");
+const fileInput = document.getElementById("fileInput");
+const selectFilesBtn = document.getElementById("selectFilesBtn");
+const saveProductBtn = document.getElementById("saveProductBtn");
+const stagedPreview = document.getElementById("stagedPreview");
+const formTitle = document.getElementById("formTitle");
 
-  // Auth handlers
-  btnLogin.addEventListener('click', async () => {
-    loginMsg.style.display = 'none';
+// Detalhes
+const productDetailCard = document.getElementById("productDetailCard");
+const detailTitle = document.getElementById("detailTitle");
+const detailSubtitle = document.getElementById("detailSubtitle");
+const detailPhotos = document.getElementById("detailPhotos");
+const maintenanceList = document.getElementById("maintenanceList");
+
+// Camera
+const cameraModal = document.getElementById("cameraModal");
+const closeCameraBtn = document.getElementById("closeCameraBtn");
+const cameraVideo = document.getElementById("cameraVideo");
+const captureBtn = document.getElementById("captureBtn");
+
+// Manutenção
+const maintModal = document.getElementById("maintModal");
+const closeMaintBtn = document.getElementById("closeMaintBtn");
+const maintDate = document.getElementById("maintDate");
+const maintDesc = document.getElementById("maintDesc");
+const saveMaintBtn = document.getElementById("saveMaintBtn");
+
+// Estado
+let currentUser = null;
+let capturedPhotos = [];
+let currentProductId = null;
+
+// -----------------------------
+// LOGIN
+// -----------------------------
+
+btnLogin.onclick = async () => {
     try {
-      await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-      await auth.signInWithEmailAndPassword(emailInput.value.trim(), passInput.value.trim());
-    } catch (err) {
-      loginMsg.style.display = 'block';
-      loginMsg.textContent = err.message;
+        await auth.signInWithEmailAndPassword(emailLogin.value, senhaLogin.value);
+        loginMsg.style.display = "none";
+    } catch (e) {
+        loginMsg.style.display = "block";
+        loginMsg.innerText = "Erro: " + e.message;
     }
-  });
+};
 
-  btnDemo.addEventListener('click', async () => {
-    const DEMO_EMAIL = 'admin@teste.com';
-    const DEMO_PASS = '123456';
+btnDemo.onclick = async () => {
     try {
-      await auth.createUserWithEmailAndPassword(DEMO_EMAIL, DEMO_PASS);
-      alert('Conta demo criada. Entre com admin@teste.com / 123456');
-    } catch (err) {
-      if (err.code === 'auth/email-already-in-use') alert('Conta demo já existe, faça login.');
-      else alert('Erro criar demo: ' + err.message);
+        await auth.createUserWithEmailAndPassword(
+            emailLogin.value,
+            senhaLogin.value
+        );
+    } catch (e) {
+        loginMsg.style.display = "block";
+        loginMsg.innerText = e.message;
     }
-  });
+};
 
-  btnLogout.addEventListener('click', () => auth.signOut());
+btnLogout.onclick = () => auth.signOut();
 
-  auth.onAuthStateChanged(user => {
+btnOpenLogin.onclick = () => {
+    loginBox.classList.remove("hidden");
+    appLayout.classList.add("hidden");
+};
+
+// -----------------------------
+// OBSERVADOR DE LOGIN
+// -----------------------------
+
+auth.onAuthStateChanged(async (user) => {
     currentUser = user;
-    if (user) {
-      loginBox.style.display = 'none';
-      appLayout.classList.remove('hidden');
-      appLayout.setAttribute('aria-hidden','false');
-      sidebarUser.textContent = user.email;
-      statUser.textContent = user.email;
-      btnLogout.classList.remove('hidden');
-      startProductsListener();
-    } else {
-      loginBox.style.display = '';
-      appLayout.classList.add('hidden');
-      appLayout.setAttribute('aria-hidden','true');
-      sidebarUser.textContent = 'Não logado';
-      statUser.textContent = '—';
-      btnLogout.classList.add('hidden');
-      stopProductsListener();
-    }
-  });
 
-  // Firestore listener
-  function startProductsListener() {
-    if (productsUnsub) productsUnsub();
-    productsUnsub = db.collection('produtos').orderBy('criado','desc').onSnapshot(snap => {
-      const items = [];
-      snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
-      renderTable(items);
-    }, err => {
-      console.error('products snapshot', err);
+    if (!user) {
+        loginBox.classList.remove("hidden");
+        appLayout.classList.add("hidden");
+        return;
+    }
+
+    // Logado
+    loginBox.classList.add("hidden");
+    appLayout.classList.remove("hidden");
+
+    sidebarUser.textContent = user.email;
+    btnLogout.classList.remove("hidden");
+
+    loadProducts();
+});
+
+// -----------------------------
+// CARREGAR PRODUTOS
+// -----------------------------
+
+async function loadProducts() {
+    const snap = await db.collection("produtos").get();
+
+    productTableBody.innerHTML = "";
+    detailPhotos.innerHTML = "";
+
+    let countPhotos = 0;
+
+    snap.forEach((doc) => {
+        const p = doc.data();
+
+        const tr = document.createElement("tr");
+
+        const foto = p.fotos?.length ? p.fotos[0] : null;
+
+        tr.innerHTML = `
+          <td>${p.numero}</td>
+          <td>${p.equipamento}</td>
+          <td>${p.setor}</td>
+          <td>${foto ? `<img class="photo-thumb" src="${foto}">` : "—"}</td>
+          <td><button class="btn-ghost" data-id="${doc.id}">Abrir</button></td>
+        `;
+
+        productTableBody.appendChild(tr);
+
+        if (p.fotos) countPhotos += p.fotos.length;
+
+        tr.querySelector("button").onclick = () => openDetails(doc.id);
     });
-  }
 
-  function stopProductsListener() {
-    if (productsUnsub) { productsUnsub(); productsUnsub = null; }
-    productTableBody.innerHTML = '<tr><td colspan="5" class="small">Faça login</td></tr>';
-  }
+    statItems.textContent = snap.size;
+    statPhotos.textContent = countPhotos;
 
-  function renderTable(items) {
-    if (!items.length) {
-      productTableBody.innerHTML = '<tr><td colspan="5" class="small">Nenhum produto</td></tr>';
-      statItems.textContent = '0';
-      return;
-    }
-    statItems.textContent = String(items.length);
-    productTableBody.innerHTML = items.map(p => `
-      <tr>
-        <td>${p.numero || p.patrimonio || '-'}</td>
-        <td>${p.equipamento || '-'}</td>
-        <td>${p.setor || '-'}</td>
-        <td>${(p.fotos && p.fotos.length) ? '<img class="photo-thumb" src="'+p.fotos[0]+'">' : '-'}</td>
-        <td>
-          <button class="btn-ghost" data-id="${p.id}" data-action="view">Ver</button>
-          <button class="btn-ghost" data-id="${p.id}" data-action="delete">Excluir</button>
-        </td>
-      </tr>
-    `).join('');
+    productCount.textContent = `${snap.size} produtos`;
+}
 
-    // attach events
-    productTableBody.querySelectorAll('button').forEach(b => {
-      b.addEventListener('click', (ev) => {
-        const id = b.dataset.id;
-        const action = b.dataset.action;
-        if (action === 'view') openDetail(id);
-        if (action === 'delete') deleteProduct(id);
-      });
-    });
-  }
+// -----------------------------
+// ABRIR DETALHES
+// -----------------------------
 
-  // New product flow
-  btnNewProduct.addEventListener('click', () => {
-    document.getElementById('formTitle').textContent = 'Novo Produto';
-    numeroInput.value=''; equipamentoInput.value=''; setorInput.value='';
-    stagedFiles = []; stagedPreview.innerHTML=''; currentProductId=null;
-    showModal(productFormModal);
-  });
-
-  closeFormBtn.addEventListener('click', () => hideModal(productFormModal));
-
-  selectFilesBtn.addEventListener('click', () => fileInput.click());
-  fileInput.addEventListener('change', e => {
-    const files = Array.from(e.target.files);
-    stagedFiles = stagedFiles.concat(files);
-    renderStaged();
-    fileInput.value='';
-  });
-
-  function renderStaged(){
-    stagedPreview.innerHTML = '';
-    stagedFiles.forEach((f,idx) => {
-      const url = URL.createObjectURL(f);
-      const img = document.createElement('img');
-      img.src = url; img.width = 120; img.style.margin='4px'; img.style.cursor='pointer';
-      img.title = 'Clique para remover';
-      img.addEventListener('click', ()=> { stagedFiles.splice(idx,1); renderStaged(); });
-      stagedPreview.appendChild(img);
-    });
-  }
-
-  openCameraBtn.addEventListener('click', () => openCameraModal());
-
-  // camera captured -> either staged (new product) or direct upload (editing product)
-  window.addEventListener('camera:captured', async (ev) => {
-    const blob = ev.detail.blob;
-    if (currentProductId) {
-      try {
-        const url = await uploadImageCloudinary(blob);
-        await db.collection('produtos').doc(currentProductId).update({ fotos: firebase.firestore.FieldValue.arrayUnion(url) });
-        await openDetail(currentProductId);
-        alert('Foto adicionada ao produto');
-      } catch (err) {
-        console.error(err); alert('Erro upload: ' + err.message);
-      }
-    } else {
-      stagedFiles.push(new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' }));
-      renderStaged();
-    }
-  });
-
-  // save product
-  saveProductBtn.addEventListener('click', async () => {
-    const numero = numeroInput.value.trim() || null;
-    const equipamento = equipamentoInput.value.trim() || null;
-    const setor = setorInput.value.trim() || null;
-    if (!numero || !equipamento) { alert('Preencha Nº e Equipamento'); return; }
-    try {
-      const docRef = await db.collection('produtos').add({ numero, equipamento, setor, fotos: [], criado: firebase.firestore.FieldValue.serverTimestamp() });
-      const pid = docRef.id;
-      if (stagedFiles.length) {
-        for (let i=0;i<stagedFiles.length;i++){
-          const file = stagedFiles[i];
-          const url = await uploadImageCloudinary(file);
-          await db.collection('produtos').doc(pid).update({ fotos: firebase.firestore.FieldValue.arrayUnion(url) });
-        }
-      }
-      hideModal(productFormModal);
-      alert('Produto salvo');
-    } catch (err) {
-      console.error('Erro salvar', err);
-      alert('Erro ao salvar produto: ' + err.message);
-    }
-  });
-
-  // open product detail
-  async function openDetail(id) {
+async function openDetails(id) {
     currentProductId = id;
+
+    const docData = await db.collection("produtos").doc(id).get();
+    const p = docData.data();
+
+    productDetailCard.classList.remove("hidden");
+    detailTitle.textContent = p.equipamento;
+    detailSubtitle.textContent = `Patrimônio ${p.numero}`;
+
+    detailPhotos.innerHTML = "";
+    if (p.fotos?.length) {
+        p.fotos.forEach((f) => {
+            const img = document.createElement("img");
+            img.src = f;
+            img.className = "photo-thumb";
+            detailPhotos.appendChild(img);
+        });
+    }
+
+    loadMaintenance(id);
+}
+
+// -----------------------------
+// FORM DE PRODUTO
+// -----------------------------
+
+btnNewProduct.onclick = () => {
+    capturedPhotos = [];
+    stagedPreview.innerHTML = "";
+    numeroInput.value = "";
+    equipamentoInput.value = "";
+    setorInput.value = "";
+    formTitle.textContent = "Novo produto";
+    productFormModal.classList.add("show");
+};
+
+closeFormBtn.onclick = () => productFormModal.classList.remove("show");
+
+selectFilesBtn.onclick = () => fileInput.click();
+
+fileInput.onchange = async (ev) => {
+    for (const file of ev.target.files) {
+        const blob = file;
+        capturedPhotos.push(blob);
+
+        const img = document.createElement("img");
+        img.className = "photo-thumb";
+        img.src = URL.createObjectURL(blob);
+        stagedPreview.appendChild(img);
+    }
+};
+
+// -----------------------------
+// CÂMERA
+// -----------------------------
+
+openCameraBtn.onclick = async () => {
+    await openCamera();
+    cameraModal.classList.add("show");
+};
+
+closeCameraBtn.onclick = () => cameraModal.classList.remove("show");
+
+captureBtn.onclick = async () => {
+    const blob = await capturePhoto();
+    capturedPhotos.push(blob);
+
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(blob);
+    img.className = "photo-thumb";
+    stagedPreview.appendChild(img);
+
+    cameraModal.classList.remove("show");
+};
+
+// -----------------------------
+// SALVAR PRODUTO
+// -----------------------------
+
+saveProductBtn.onclick = async () => {
     try {
-      const doc = await db.collection('produtos').doc(id).get();
-      if (!doc.exists) { alert('Produto não encontrado'); return; }
-      const data = doc.data();
-      detailTitle.textContent = data.equipamento || '-';
-      detailSubtitle.textContent = `Nº ${data.numero || '-'} • Setor: ${data.setor || '-'}`;
-      detailPhotos.innerHTML = '';
-      (data.fotos || []).forEach(u => {
-        const img = document.createElement('img');
-        img.src = u; img.width = 140; img.style.margin='6px';
-        detailPhotos.appendChild(img);
-      });
-      // load maintenance
-      maintenanceList.innerHTML = 'Carregando...';
-      const entries = await getMaintenance(id);
-      if (!entries.length) maintenanceList.innerHTML = '<div class="small">Nenhuma manutenção</div>';
-      else maintenanceList.innerHTML = entries.map(e=>`<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.03)"><strong>${new Date(e.dateISO).toLocaleDateString()}</strong><div class="small">${e.descricao}</div><div class="small">Por: ${e.user || '-'}</div></div>`).join('');
-      show(productDetailCard);
-      productDetailCard.scrollIntoView({behavior:'smooth'});
-    } catch (err) { console.error(err); alert('Erro abrir detalhe'); }
-  }
+        let fotoUrls = [];
 
-  // add photo button -> open camera for current product
-  btnAddPhoto.addEventListener('click', async () => {
-    if (!currentProductId) { alert('Abra um produto primeiro'); return; }
-    openCameraModal();
-  });
+        for (const blob of capturedPhotos) {
+            const url = await uploadImageCloudinary(blob);
+            fotoUrls.push(url);
+        }
 
-  // delete product
-  async function deleteProduct(id) {
-    if (!confirm('Excluir produto?')) return;
-    try {
-      await db.collection('produtos').doc(id).delete();
-      alert('Produto excluído');
-      productDetailCard.classList.add('hidden');
-    } catch (err) { console.error(err); alert('Erro excluir'); }
-  }
+        const novo = {
+            numero: numeroInput.value,
+            equipamento: equipamentoInput.value,
+            setor: setorInput.value,
+            fotos: fotoUrls,
+            criadoEm: Date.now(),
+        };
 
-  // maintenance modal
-  btnAddMaint.addEventListener('click', ()=> {
-    if (!currentProductId) { alert('Abra um produto'); return; }
-    showModal(maintModal);
-    maintDate.value = new Date().toISOString().split('T')[0];
-    maintDesc.value = '';
-  });
-  closeMaintBtn.addEventListener('click', ()=> hideModal(maintModal));
-  saveMaintBtn.addEventListener('click', async () => {
-    const dateISO = maintDate.value ? new Date(maintDate.value).toISOString() : new Date().toISOString();
-    const descricao = maintDesc.value.trim();
-    if (!descricao) { alert('Descreva a manutenção'); return; }
-    try {
-      await addMaintenance(currentProductId, { dateISO, descricao, user: currentUser.email });
-      hideModal(maintModal);
-      await openDetail(currentProductId);
-      alert('Manutenção salva');
-    } catch (err) { console.error(err); alert('Erro salvar manutenção'); }
-  });
+        await db.collection("produtos").add(novo);
 
-  // utility: close camera modal from outside UI (camera.js)
-  window.addEventListener('closeCamera', ()=> { /* optional hook */ });
+        productFormModal.classList.remove("show");
 
-  // initial UI state
-  hide(productDetailCard);
-})();
+        loadProducts();
+    } catch (e) {
+        alert("Erro ao salvar: " + e.message);
+    }
+};
+
+// -----------------------------
+// MANUTENÇÃO
+// -----------------------------
+
+btnAddMaint.onclick = () => {
+    maintDate.value = new Date().toISOString().split("T")[0];
+    maintDesc.value = "";
+    maintModal.classList.add("show");
+};
+
+closeMaintBtn.onclick = () => maintModal.classList.remove("show");
+
+saveMaintBtn.onclick = async () => {
+    await addMaintenance(currentProductId, maintDate.value, maintDesc.value);
+    maintModal.classList.remove("show");
+    loadMaintenance(currentProductId);
+};
+
+// -----------------------------
+// CARREGAR MANUTENÇÃO
+// -----------------------------
+
+async function loadMaintenance(id) {
+    const snap = await db
+        .collection("produtos")
+        .doc(id)
+        .collection("manutencoes")
+        .orderBy("data")
+        .get();
+
+    if (snap.empty) {
+        maintenanceList.textContent = "Nenhuma manutenção registrada";
+        return;
+    }
+
+    maintenanceList.innerHTML = "";
+
+    snap.forEach((doc) => {
+        const m = doc.data();
+
+        const div = document.createElement("div");
+        div.innerHTML = `
+            <div style="margin-bottom:8px">
+              <b>${m.data}</b><br>
+              ${m.descricao}
+            </div>
+        `;
+
+        maintenanceList.appendChild(div);
+    });
+}
