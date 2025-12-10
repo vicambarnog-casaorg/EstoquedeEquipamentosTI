@@ -1,5 +1,5 @@
 // firebase.js
-
+(function(){
   const firebaseConfig = {
     apiKey: "AIzaSyAwCfiEB3JEUu_6rKR32C2E5whnb6-SgX0",
     authDomain: "sis-eetibkp.firebaseapp.com",
@@ -9,9 +9,12 @@
     appId: "1:524123050144:web:79fba6107cf073118679c5"
   };
 
-  
-  firebase.initializeApp(firebaseConfig);
-  
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+
+  window.firebase = firebase;
   window.auth = firebase.auth();
   window.db = firebase.firestore();
-  
+})();
