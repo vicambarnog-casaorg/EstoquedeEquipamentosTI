@@ -1,35 +1,46 @@
-let stream;
+// camera.js
+(function(){
+  const cameraModal = document.getElementById('cameraModal');
+  const video = document.getElementById('cameraVideo');
+  const captureBtn = document.getElementById('captureBtn');
+  const closeCameraBtn = document.getElementById('closeCameraBtn');
+  let stream = null;
 
-function openCameraModal(isExtra = false) {
-    window.isExtraPhoto = isExtra;
-    document.getElementById("cameraModal").style.display = "flex";
+  window.openCameraModal = async function() {
+    cameraModal.classList.add('show');
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+      video.srcObject = stream;
+      await video.play();
+    } catch (err) {
+      console.error('Erro câmera:', err);
+      alert('Não foi possível acessar a câmera: ' + (err.message || err));
+      closeCameraModal();
+    }
+  };
 
-    navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
-        stream = s;
-        document.getElementById("cameraVideo").srcObject = s;
-    });
-}
+  window.closeCameraModal = function() {
+    cameraModal.classList.remove('show');
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    video.srcObject = null;
+  };
 
-function fecharCameraModal() {
-    document.getElementById("cameraModal").style.display = "none";
-    if (stream) stream.getTracks().forEach(t => t.stop());
-}
+  captureBtn.addEventListener('click', async () => {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 1280;
+      canvas.height = video.videoHeight || 720;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
+      // Dispatch global event with captured blob
+      window.dispatchEvent(new CustomEvent('camera:captured', { detail: { blob } }));
+      closeCameraModal();
+    } catch (err) {
+      console.error('Erro capturar:', err);
+      alert('Erro ao capturar foto: ' + err.message);
+    }
+  });
 
-async function capturarFoto() {
-    const video = document.getElementById("cameraVideo");
-
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    canvas.getContext("2d").drawImage(video, 0, 0);
-
-    canvas.toBlob(async (blob) => {
-        await appRecebeFoto(blob);
-        fecharCameraModal();
-    }, "image/jpeg", 0.9);
-}
-
-window.openCameraModal = openCameraModal;
-window.capturarFoto = capturarFoto;
-window.fecharCameraModal = fecharCameraModal;
+  closeCameraBtn.addEventListener('click', closeCameraModal);
+})();
