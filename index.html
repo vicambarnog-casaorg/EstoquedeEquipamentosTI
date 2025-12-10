@@ -1,1163 +1,186 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#6366f1">
-  <meta name="mobile-web-app-capable" content="yes">
-  <title>Patrimônio EETI • Sistema Completo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Patrimônio EETI • Sistema Completo (Firebase Auth)</title>
 
-  <!-- Firebase SDK -->
+  <!-- Firebase (compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 
   <!-- Ícones -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
-    /* ========== VARIÁVEIS E RESET ========== */
-    :root {
-      /* Cores Light Mode */
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --primary-light: #818cf8;
-      --secondary: #10b981;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --info: #3b82f6;
-      --muted: #6b7280;
-      --light: #f9fafb;
-      --dark: #111827;
-      --card-bg: #ffffff;
-      --body-bg: #f3f4f6;
-      --border: #e5e7eb;
-      --shadow: 0 1px 3px rgba(0,0,0,0.1);
-      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.1);
-      --radius: 12px;
-      --radius-sm: 8px;
-      --transition: all 0.3s ease;
-    }
-
-    [data-theme="dark"] {
-      --primary: #818cf8;
-      --primary-dark: #6366f1;
-      --primary-light: #a5b4fc;
-      --secondary: #34d399;
-      --danger: #f87171;
-      --warning: #fbbf24;
-      --info: #60a5fa;
-      --muted: #9ca3af;
-      --light: #1f2937;
-      --dark: #f9fafb;
-      --card-bg: #374151;
-      --body-bg: #111827;
-      --border: #4b5563;
-      --shadow: 0 1px 3px rgba(0,0,0,0.3);
-      --shadow-lg: 0 10px 25px -5px rgba(0,0,0,0.5);
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--body-bg);
-      color: var(--dark);
-      line-height: 1.6;
-      min-height: 100vh;
-      transition: var(--transition);
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-
-    .hide {
-      display: none !important;
-    }
-
-    /* ========== TYPOGRAPHY ========== */
-    h1, h2, h3, h4, h5, h6 {
-      font-weight: 600;
-      line-height: 1.3;
-      color: var(--dark);
-    }
-
-    .text-muted {
-      color: var(--muted);
-      font-size: 0.875rem;
-    }
-
-    .text-small {
-      font-size: 0.875rem;
-    }
-
-    /* ========== LAYOUT ========== */
-    .app-container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 16px;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ========== HEADER ========== */
-    .app-header {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
-      padding: 1rem 0;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: var(--shadow-lg);
-      backdrop-filter: blur(10px);
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(79, 70, 229, 0.95));
-    }
-
-    .header-content {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-    }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      text-decoration: none;
-      color: white;
-    }
-
-    .logo-icon {
-      font-size: 1.75rem;
-      background: rgba(255, 255, 255, 0.2);
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      backdrop-filter: blur(5px);
-    }
-
-    .logo-text {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .logo-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-    }
-
-    .logo-subtitle {
-      font-size: 0.75rem;
-      opacity: 0.9;
-    }
-
-    .header-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    /* ========== BUTTONS ========== */
-    .btn {
-      padding: 10px 18px;
-      border-radius: var(--radius-sm);
-      border: none;
-      font-weight: 500;
-      font-size: 0.875rem;
-      cursor: pointer;
-      transition: var(--transition);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      white-space: nowrap;
-    }
-
-    .btn:hover {
-      transform: translateY(-1px);
-      box-shadow: var(--shadow-lg);
-    }
-
-    .btn:active {
-      transform: translateY(0);
-    }
-
-    .btn-primary {
-      background: var(--primary);
-      color: white;
-    }
-
-    .btn-primary:hover {
-      background: var(--primary-dark);
-    }
-
-    .btn-secondary {
-      background: var(--secondary);
-      color: white;
-    }
-
-    .btn-danger {
-      background: var(--danger);
-      color: white;
-    }
-
-    .btn-warning {
-      background: var(--warning);
-      color: var(--dark);
-    }
-
-    .btn-info {
-      background: var(--info);
-      color: white;
-    }
-
-    .btn-ghost {
-      background: transparent;
-      color: inherit;
-      border: 1px solid var(--border);
-    }
-
-    .btn-sm {
-      padding: 6px 12px;
-      font-size: 0.75rem;
-    }
-
-    .btn-icon {
-      padding: 8px;
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-    }
-
-    /* ========== STATUS BADGES ========== */
-    .status-badge {
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.75rem;
-      font-weight: 500;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .status-online {
-      background: rgba(16, 185, 129, 0.1);
-      color: var(--secondary);
-    }
-
-    .status-offline {
-      background: rgba(239, 68, 68, 0.1);
-      color: var(--danger);
-    }
-
-    .status-syncing {
-      background: rgba(59, 130, 246, 0.1);
-      color: var(--info);
-      animation: pulse 2s infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.7; }
-    }
-
-    /* ========== MAIN LAYOUT ========== */
-    .main-content {
-      flex: 1;
-      padding: 24px 0;
-      display: grid;
-      grid-template-columns: 1fr 2fr;
-      gap: 24px;
-    }
-
-    /* ========== CARDS ========== */
-    .card {
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      padding: 24px;
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-      transition: var(--transition);
-    }
-
-    .card:hover {
-      box-shadow: var(--shadow-lg);
-      transform: translateY(-2px);
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .card-title {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 1.125rem;
-    }
-
-    .card-title i {
-      color: var(--primary);
-    }
-
-    /* ========== FORMS ========== */
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-      color: var(--dark);
-      font-size: 0.875rem;
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 12px 16px;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-      background: var(--card-bg);
-      color: var(--dark);
-      font-size: 0.875rem;
-      transition: var(--transition);
-    }
-
-    .form-control:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-    }
-
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-
-    /* ========== PHOTO PREVIEW ========== */
-    .photo-upload-area {
-      border: 2px dashed var(--border);
-      border-radius: var(--radius-sm);
-      padding: 20px;
-      text-align: center;
-      margin-bottom: 16px;
-      transition: var(--transition);
-    }
-
-    .photo-upload-area:hover {
-      border-color: var(--primary);
-      background: rgba(99, 102, 241, 0.05);
-    }
-
-    .photo-preview {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-      gap: 12px;
-      margin-top: 16px;
-    }
-
-    .photo-item {
-      position: relative;
-      aspect-ratio: 4/3;
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      background: var(--light);
-    }
-
-    .photo-item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: var(--transition);
-    }
-
-    .photo-item:hover img {
-      transform: scale(1.05);
-    }
-
-    .photo-remove {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: rgba(239, 68, 68, 0.9);
-      color: white;
-      border: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      opacity: 0;
-      transition: var(--transition);
-    }
-
-    .photo-item:hover .photo-remove {
-      opacity: 1;
-    }
-
-    /* ========== TABLE ========== */
-    .table-container {
-      overflow-x: auto;
-      border-radius: var(--radius-sm);
-      border: 1px solid var(--border);
-    }
-
-    .table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 600px;
-    }
-
-    .table th {
-      background: var(--light);
-      padding: 16px;
-      text-align: left;
-      font-weight: 600;
-      color: var(--dark);
-      font-size: 0.875rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .table td {
-      padding: 16px;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.875rem;
-    }
-
-    .table tr:hover {
-      background: rgba(99, 102, 241, 0.05);
-    }
-
-    .table tr:last-child td {
-      border-bottom: none;
-    }
-
-    /* ========== ACTION BUTTONS ========== */
-    .action-buttons {
-      display: flex;
-      gap: 8px;
-    }
-
-    /* ========== MODALS ========== */
-    .modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      padding: 20px;
-      opacity: 0;
-      visibility: hidden;
-      transition: var(--transition);
-      backdrop-filter: blur(5px);
-    }
-
-    .modal.active {
-      opacity: 1;
-      visibility: visible;
-    }
-
-    .modal-content {
-      background: var(--card-bg);
-      border-radius: var(--radius);
-      max-width: 800px;
-      width: 100%;
-      max-height: 90vh;
-      overflow-y: auto;
-      transform: translateY(20px);
-      transition: var(--transition);
-      box-shadow: var(--shadow-lg);
-    }
-
-    .modal.active .modal-content {
-      transform: translateY(0);
-    }
-
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 24px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .modal-body {
-      padding: 24px;
-    }
-
-    /* ========== LOADING ========== */
-    .loader {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 2px solid var(--border);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    /* ========== TOAST NOTIFICATIONS ========== */
-    .toast-container {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .toast {
-      background: var(--card-bg);
-      border-radius: var(--radius-sm);
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      box-shadow: var(--shadow-lg);
-      transform: translateX(100%);
-      opacity: 0;
-      animation: slideIn 0.3s ease forwards;
-      border-left: 4px solid var(--primary);
-    }
-
-    @keyframes slideIn {
-      to {
-        transform: translateX(0);
-        opacity: 1;
-      }
-    }
-
-    .toast-success {
-      border-left-color: var(--secondary);
-    }
-
-    .toast-error {
-      border-left-color: var(--danger);
-    }
-
-    .toast-warning {
-      border-left-color: var(--warning);
-    }
-
-    /* ========== RESPONSIVE DESIGN ========== */
-    @media (max-width: 1024px) {
-      .main-content {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    @media (max-width: 768px) {
-      .app-container {
-        padding: 0 12px;
-      }
-
-      .header-content {
-        flex-wrap: wrap;
-      }
-
-      .logo-text {
-        display: none;
-      }
-
-      .form-row {
-        grid-template-columns: 1fr;
-      }
-
-      .card {
-        padding: 16px;
-      }
-
-      .modal-content {
-        margin: 0 12px;
-      }
-    }
-
-    @media (max-width: 480px) {
-      .header-controls {
-        width: 100%;
-        justify-content: space-between;
-        margin-top: 12px;
-      }
-
-      .action-buttons {
-        flex-wrap: wrap;
-      }
-
-      .btn {
-        padding: 8px 12px;
-        font-size: 0.75rem;
-      }
-    }
-
-    /* ========== DARK MODE TOGGLE ========== */
-    .theme-toggle {
-      background: transparent;
-      border: none;
-      color: white;
-      cursor: pointer;
-      font-size: 1.25rem;
-      padding: 8px;
-      border-radius: 50%;
-      transition: var(--transition);
-    }
-
-    .theme-toggle:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    /* ========== SCROLLBAR ========== */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--light);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--muted);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--primary);
-    }
-
-    /* ========== CAMERA MODAL ========== */
-    .camera-container {
-      position: relative;
-      width: 100%;
-      border-radius: var(--radius-sm);
-      overflow: hidden;
-      background: #000;
-    }
-
-    .camera-video {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    .camera-controls {
-      display: flex;
-      justify-content: center;
-      gap: 16px;
-      margin-top: 20px;
-    }
-
-    .capture-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: white;
-      border: 4px solid var(--primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: var(--transition);
-    }
-
-    .capture-btn:hover {
-      transform: scale(1.05);
-      box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-    }
-
-    .capture-btn i {
-      font-size: 24px;
-      color: var(--primary);
-    }
-
-    /* ========== EMPTY STATE ========== */
-    .empty-state {
-      text-align: center;
-      padding: 48px 24px;
-      color: var(--muted);
-    }
-
-    .empty-state i {
-      font-size: 48px;
-      margin-bottom: 16px;
-      opacity: 0.5;
-    }
-
-    /* ========== STATS CARDS ========== */
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .stat-card {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
-      padding: 20px;
-      border-radius: var(--radius);
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .stat-icon {
-      font-size: 2rem;
-      opacity: 0.9;
-    }
-
-    .stat-content {
-      flex: 1;
-    }
-
-    .stat-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
-    .stat-label {
-      font-size: 0.875rem;
-      opacity: 0.9;
-    }
-
-    /* ========== VIEW ITEM STYLES ========== */
-    .item-details {
-      padding: 16px;
-    }
-
-    .detail-group {
-      margin-bottom: 20px;
-    }
-
-    .detail-label {
-      font-weight: 600;
-      color: var(--muted);
-      margin-bottom: 4px;
-      font-size: 0.875rem;
-    }
-
-    .detail-value {
-      color: var(--dark);
-      padding: 8px 0;
-    }
-
-    .photos-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 12px;
-      margin-top: 12px;
-    }
-
-    .history-list {
-      list-style: none;
-      padding: 0;
-    }
-
-    .history-item {
-      padding: 12px;
-      border-left: 3px solid var(--primary);
-      background: var(--light);
-      margin-bottom: 8px;
-      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-    }
-
-    .history-date {
-      font-weight: 600;
-      color: var(--primary);
-      font-size: 0.875rem;
-    }
-
-    .history-desc {
-      margin-top: 4px;
-      color: var(--dark);
-    }
-
-    /* ========== LOGIN SPECIFIC ========== */
-    .login-container {
-      max-width: 400px;
-      margin: 60px auto;
-    }
-
-    .login-header {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-
-    .login-icon {
-      font-size: 48px;
-      color: var(--primary);
-      margin-bottom: 16px;
-    }
-
-    .login-footer {
-      text-align: center;
-      margin-top: 24px;
-      padding-top: 16px;
-      border-top: 1px solid var(--border);
-    }
+    /* ======= Theme & Reset ======= */
+    :root{
+      --primary:#6366f1; --primary-dark:#4f46e5; --muted:#6b7280; --card-bg:#fff;
+      --body-bg:#f3f4f6; --border:#e5e7eb; --radius:12px; --radius-sm:8px; --transition:all .3s ease;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,Segoe UI,Roboto,sans-serif;background:var(--body-bg);color:#111827;min-height:100vh;line-height:1.6}
+    .hide{display:none!important}
+    .app-container{max-width:1400px;margin:0 auto;padding:0 16px;min-height:100vh;display:flex;flex-direction:column}
+    .app-header{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:1rem 0;position:sticky;top:0;z-index:100;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1);backdrop-filter:blur(8px)}
+    .header-content{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+    .logo{display:flex;align-items:center;gap:12px;color:white;text-decoration:none}
+    .logo-icon{font-size:1.75rem;background:rgba(255,255,255,0.12);width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+    .logo-title{font-size:1.25rem;font-weight:700}
+    .logo-subtitle{font-size:.75rem;opacity:.9}
+    .header-controls{display:flex;align-items:center;gap:12px}
+    .btn{padding:8px 14px;border-radius:8px;border:none;font-weight:600;cursor:pointer;transition:var(--transition);display:inline-flex;align-items:center;gap:8px}
+    .btn-ghost{background:transparent;border:1px solid var(--border);color:inherit}
+    .btn-primary{background:var(--primary);color:white}
+    .btn-danger{background:#ef4444;color:white}
+    .btn-sm{padding:6px 10px;font-size:.85rem}
+    .status-badge{padding:6px 10px;border-radius:999px;font-size:.85rem;background:rgba(255,255,255,0.08)}
+    .main-content{flex:1;padding:24px 0;display:grid;grid-template-columns:1fr 2fr;gap:24px}
+    .card{background:var(--card-bg);border-radius:var(--radius);padding:20px;box-shadow:0 1px 3px rgba(0,0,0,0.06);border:1px solid var(--border)}
+    .login-container{max-width:420px;margin:40px auto}
+    .form-group{margin-bottom:14px}
+    .form-label{display:block;margin-bottom:8px;font-weight:600;font-size:.9rem}
+    .form-control{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);font-size:.95rem}
+    .text-muted{color:var(--muted);font-size:.9rem}
+    .table-container{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+    table{width:100%;border-collapse:collapse;min-width:600px}
+    th,td{padding:12px;border-bottom:1px solid var(--border);text-align:left}
+    .empty-state{text-align:center;padding:36px;color:var(--muted)}
+    .toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px}
+    .toast{padding:12px 16px;border-radius:8px;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,0.08);border-left:4px solid var(--primary)}
+    @media(max-width:1024px){.main-content{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <div class="app-container">
-    <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <!-- Header -->
     <header class="app-header">
       <div class="header-content">
         <div class="logo">
-          <div class="logo-icon">
-            <i class="fas fa-boxes-stacked"></i>
-          </div>
-          <div class="logo-text">
-            <span class="logo-title">Patrimônio EETI</span>
-            <span class="logo-subtitle">Sistema de Gestão Completo</span>
+          <div class="logo-icon"><i class="fas fa-boxes-stacked"></i></div>
+          <div>
+            <div class="logo-title">Patrimônio EETI</div>
+            <div class="logo-subtitle">Sistema de Gestão Completo</div>
           </div>
         </div>
 
         <div class="header-controls">
-          <div id="onlineStatus" class="status-badge status-offline">
-            <i class="fas fa-wifi"></i>
-            <span>Offline</span>
-          </div>
-          
-          <div id="syncStatus" class="status-badge status-syncing hide">
-            <i class="fas fa-sync-alt"></i>
-            <span>Sincronizando...</span>
-          </div>
-
-          <button class="btn btn-sm btn-ghost" id="btnForceSync" title="Sincronizar agora">
-            <i class="fas fa-sync-alt"></i>
-          </button>
-
-          <button class="theme-toggle" id="themeToggle" title="Alternar tema">
-            <i class="fas fa-moon"></i>
-          </button>
-
-          <button class="btn btn-sm btn-ghost" id="btnOpenLogin">
-            <i class="fas fa-sign-in-alt"></i>
-            <span class="hide-on-mobile">Entrar</span>
-          </button>
-
-          <button class="btn btn-sm btn-danger hide" id="btnLogout">
-            <i class="fas fa-sign-out-alt"></i>
-            <span class="hide-on-mobile">Sair</span>
-          </button>
+          <div id="onlineStatus" class="status-badge"><i class="fas fa-wifi"></i>&nbsp;<span id="onlineText">Conexão desconhecida</span></div>
+          <button id="btnOpenLogin" class="btn btn-ghost btn-sm"><i class="fas fa-sign-in-alt"></i> Entrar</button>
+          <button id="btnLogout" class="btn btn-danger btn-sm hide"><i class="fas fa-sign-out-alt"></i> Sair</button>
         </div>
       </div>
     </header>
 
-    <!-- Main Content -->
     <main class="main-content">
-      <!-- Left Panel - Login/Form -->
+      <!-- Left: Login / Form -->
       <section id="leftPanel">
-        <!-- Login Screen -->
-        <div class="card login-container" id="loginCard">
-          <div class="login-header">
-            <div class="login-icon">
-              <i class="fas fa-lock"></i>
-            </div>
+        <!-- LOGIN -->
+        <div id="loginCard" class="card login-container">
+          <div style="text-align:center;margin-bottom:18px">
+            <div style="font-size:40px;color:var(--primary)"><i class="fas fa-lock"></i></div>
             <h2>Acesso ao Sistema</h2>
-            <p class="text-muted">Faça login para gerenciar o patrimônio</p>
+            <p class="text-muted">Use um e-mail válido para efetuar login</p>
           </div>
-          
-          <div id="loginError" class="status-badge status-offline hide" style="margin-bottom: 16px;"></div>
-          
-          <form id="loginForm">
+
+          <div id="loginError" class="text-muted" style="color:#ef4444;display:none;margin-bottom:8px"></div>
+
+          <form id="loginForm" autocomplete="on">
             <div class="form-group">
-              <label class="form-label">Usuário</label>
-              <input type="text" id="username" class="form-control" placeholder="Digite seu usuário" value="admin" autocomplete="username">
+              <label class="form-label" for="emailInput">E-mail</label>
+              <input id="emailInput" class="form-control" type="email" placeholder="seu@exemplo.com" required autocomplete="email" />
             </div>
-            
+
             <div class="form-group">
-              <label class="form-label">Senha</label>
-              <input type="password" id="password" class="form-control" placeholder="Digite sua senha" value="admin123" autocomplete="current-password">
+              <label class="form-label" for="passwordInput">Senha</label>
+              <input id="passwordInput" class="form-control" type="password" placeholder="Senha" required autocomplete="current-password" />
             </div>
-            
+
             <div class="form-group">
-              <button type="submit" class="btn btn-primary" style="width: 100%;">
-                <i class="fas fa-sign-in-alt"></i>
-                Entrar no Sistema
-              </button>
+              <button type="submit" class="btn btn-primary" style="width:100%"><i class="fas fa-sign-in-alt"></i> Entrar</button>
             </div>
           </form>
-          
-          <div class="login-footer">
-            <div class="form-group">
-              <button type="button" id="btnFillDemo" class="btn btn-ghost" style="width: 100%;">
-                <i class="fas fa-magic"></i>
-                Usar Credenciais de Demonstração
-              </button>
-            </div>
-            <p class="text-small text-muted">
-              Sistema de patrimônio escolar - Versão 2.0
-            </p>
+
+          <div style="margin-top:6px">
+            <button id="btnCreateDemo" class="btn btn-ghost" style="width:100%">Criar conta de demonstração (admin@teste.com)</button>
           </div>
+
+          <div style="margin-top:12px;text-align:center" class="text-muted">Versão de teste • Firebase Authentication</div>
         </div>
 
-        <!-- Form Area (hidden by default) -->
-        <div class="card" id="formArea" class="hide">
-          <div class="card-header">
-            <h3 class="card-title" id="formTitle">
-              <i class="fas fa-plus"></i>
-              Novo Item
-            </h3>
-            <div class="text-muted" id="photoCounter">0/10 fotos</div>
+        <!-- FORM AREA (escondida até login) -->
+        <div id="formArea" class="card hide">
+          <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:8px"><i class="fas fa-plus" style="color:var(--primary)"></i><div style="font-weight:700">Novo Item</div></div>
+            <div class="text-muted" id="photoCounter">0 fotos</div>
           </div>
 
-          <div id="patrimonioForm">
-            <div class="form-row">
+          <div>
+            <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div class="form-group">
                 <label class="form-label">Nº Patrimônio *</label>
-                <input type="text" id="numeroPatrimonio" class="form-control" required>
+                <input id="numeroPatrimonio" class="form-control" />
               </div>
               <div class="form-group">
                 <label class="form-label">Equipamento *</label>
-                <input type="text" id="equipamento" class="form-control" required>
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Setor *</label>
-                <input type="text" id="setor" class="form-control" required>
-              </div>
-              <div class="form-group">
-                <label class="form-label">Modelo</label>
-                <input type="text" id="modelo" class="form-control">
+                <input id="equipamento" class="form-control" />
               </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Configuração</label>
-              <textarea id="configuracao" class="form-control" rows="3"></textarea>
+              <label class="form-label">Setor</label>
+              <input id="setor" class="form-control" />
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Fotos do Equipamento</label>
-              <div class="photo-upload-area">
-                <i class="fas fa-camera fa-2x text-muted" style="margin-bottom: 12px;"></i>
-                <p class="text-muted">Arraste fotos ou clique para selecionar</p>
-                <div class="photo-actions" style="margin-top: 12px;">
-                  <label class="btn btn-sm btn-ghost" style="margin-right: 8px;">
-                    <i class="fas fa-upload"></i>
-                    Upload
-                    <input type="file" id="fileInput" accept="image/*" multiple class="hide">
-                  </label>
-                  <button type="button" id="btnOpenCamera" class="btn btn-sm btn-info">
-                    <i class="fas fa-camera"></i>
-                    Câmera
-                  </button>
-                </div>
-              </div>
-              <div id="photoPreview" class="photo-preview"></div>
-              <div id="uploadStatus" class="text-small text-muted" style="margin-top: 8px;"></div>
-            </div>
-
-            <div class="form-group" style="margin-top: 24px;">
-              <div class="form-row">
-                <button type="button" id="btnSave" class="btn btn-primary">
-                  <i class="fas fa-save"></i>
-                  Salvar Item
-                </button>
-                <button type="button" id="btnCancel" class="btn btn-ghost">
-                  <i class="fas fa-times"></i>
-                  Cancelar
-                </button>
-                <button type="button" id="btnNew" class="btn btn-ghost">
-                  <i class="fas fa-plus"></i>
-                  Novo
-                </button>
-              </div>
+            <div style="display:flex;gap:8px;margin-top:12px">
+              <button id="btnSave" class="btn btn-primary">Salvar</button>
+              <button id="btnCancel" class="btn btn-ghost">Cancelar</button>
             </div>
           </div>
         </div>
 
-        <!-- Stats Cards -->
-        <div class="stats-grid hide" id="statsArea">
-          <div class="stat-card">
-            <div class="stat-icon">
-              <i class="fas fa-boxes"></i>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value" id="totalCount">0</div>
-              <div class="stat-label">Itens Cadastrados</div>
-            </div>
-          </div>
-          <div class="stat-card" style="background: linear-gradient(135deg, var(--secondary), #0da271);">
-            <div class="stat-icon">
-              <i class="fas fa-camera"></i>
-            </div>
-            <div class="stat-content">
-              <div class="stat-value" id="totalFotos">0</div>
-              <div class="stat-label">Fotos</div>
-            </div>
-          </div>
-        </div>
       </section>
 
-      <!-- Right Panel - Table & Details -->
+      <!-- Right: table & details -->
       <section>
         <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">
-              <i class="fas fa-list"></i>
-              Itens do Patrimônio
-            </h3>
-            <div class="text-muted">
-              <span id="filterCount">0</span> itens
-            </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="display:flex;align-items:center;gap:8px"><i class="fas fa-list" style="color:var(--primary)"></i><div style="font-weight:700">Itens do Patrimônio</div></div>
+            <div class="text-muted" id="filterCount">0 itens</div>
           </div>
 
           <div class="table-container">
-            <table class="table" id="patrimonioTable">
+            <table id="patrimonioTable">
               <thead>
-                <tr>
-                  <th>Nº Patrimônio</th>
-                  <th>Equipamento</th>
-                  <th>Setor</th>
-                  <th style="width: 100px;">Fotos</th>
-                  <th style="width: 200px;">Ações</th>
-                </tr>
+                <tr><th>Nº Patrimônio</th><th>Equipamento</th><th>Setor</th><th style="width:150px">Ações</th></tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td colspan="5" class="text-center text-muted" style="padding: 48px;">
-                    <i class="fas fa-inbox fa-2x" style="margin-bottom: 16px; opacity: 0.3;"></i>
-                    <p>Faça login para visualizar os itens</p>
-                  </td>
-                </tr>
+              <tbody id="tableBody">
+                <tr><td colspan="4" class="empty-state">Faça login para visualizar os itens</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        <div class="card" style="margin-top: 24px;">
-          <div class="card-header">
-            <h3 class="card-title">
-              <i class="fas fa-eye"></i>
-              Detalhes do Item
-            </h3>
-          </div>
+        <div class="card" style="margin-top:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><i class="fas fa-eye" style="color:var(--primary)"></i><div style="font-weight:700">Detalhes do Item</div></div>
           <div id="viewBox" class="empty-state">
             <i class="fas fa-search"></i>
-            <p>Selecione um item para visualizar os detalhes</p>
+            <p>Selecione um item para visualizar</p>
           </div>
         </div>
       </section>
     </main>
   </div>
 
-  <!-- Camera Modal -->
-  <div class="modal" id="cameraModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="card-title">
-          <i class="fas fa-camera"></i>
-          Capturar Foto
-        </h3>
-        <button class="btn btn-icon btn-danger" id="btnCloseCamera">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="camera-container">
-          <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
-        </div>
-        <div class="camera-controls">
-          <button class="capture-btn" id="btnCapture">
-            <i class="fas fa-camera"></i>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- History Modal -->
-  <div class="modal" id="modalHistory">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="card-title">
-          <i class="fas fa-history"></i>
-          Histórico de Manutenção
-        </h3>
-        <button class="btn btn-icon btn-ghost" id="closeHistory">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <div class="card" style="background: var(--light); padding: 16px;">
-            <strong id="historyItemTitle">Carregando...</strong>
-          </div>
-        </div>
-        
-        <div id="historyContent" class="empty-state" style="min-height: 200px;">
-          <i class="fas fa-tools"></i>
-          <p>Nenhuma manutenção registrada</p>
-        </div>
-
-        <div class="form-group" style="margin-top: 32px; padding-top: 24px; border-top: 2px solid var(--border);">
-          <h4 style="margin-bottom: 20px;">
-            <i class="fas fa-plus-circle"></i>
-            Nova Manutenção
-          </h4>
-          
-          <form id="maintenanceForm">
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">Data *</label>
-                <input type="date" id="maintenanceDate" class="form-control" required>
-              </div>
-            </div>
-            
-            <div class="form-group">
-              <label class="form-label">Descrição *</label>
-              <textarea id="maintenanceDescription" class="form-control" rows="3" required placeholder="Descreva a manutenção realizada..."></textarea>
-            </div>
-            
-            <div class="form-row">
-              <button type="submit" class="btn btn-primary">
-                <i class="fas fa-plus"></i>
-                Adicionar Manutenção
-              </button>
-              <button type="button" id="clearHistoryForm" class="btn btn-ghost">
-                <i class="fas fa-eraser"></i>
-                Limpar
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
   <script>
-    // ================= CONFIGURAÇÕES =================
+    /*************************************************************************
+     * CONFIGURAÇÃO FIREBASE - substitua pelos dados do seu projeto se quiser
+     * (usei os dados similares aos que você tinha no arquivo original)
+     *************************************************************************/
     const firebaseConfig = {
       apiKey: "AIzaSyAwCfiEB3JEUu_6rKR32C2E5whnb6-SgX0",
       authDomain: "sis-eetibkp.firebaseapp.com",
@@ -1165,3 +188,241 @@
       storageBucket: "sis-eetibkp.firebasestorage.app",
       messagingSenderId: "524123050144",
       appId: "1:524123050144:web:79fba6107cf073118679c5"
+    };
+
+    // Inicializa Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // DEMO CREDENTIALS (Opção A)
+    const DEMO_EMAIL = "admin@teste.com";
+    const DEMO_PASS  = "123456";
+
+    // Elementos da UI
+    const loginCard = document.getElementById("loginCard");
+    const loginForm = document.getElementById("loginForm");
+    const emailInput = document.getElementById("emailInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const loginError = document.getElementById("loginError");
+    const btnCreateDemo = document.getElementById("btnCreateDemo");
+    const btnOpenLogin = document.getElementById("btnOpenLogin");
+    const btnLogout = document.getElementById("btnLogout");
+    const formArea = document.getElementById("formArea");
+    const tableBody = document.getElementById("tableBody");
+    const filterCount = document.getElementById("filterCount");
+    const toastContainer = document.getElementById("toastContainer");
+    const leftPanel = document.getElementById("leftPanel");
+    const viewBox = document.getElementById("viewBox");
+    const onlineText = document.getElementById("onlineText");
+
+    // Controle de visibilidade inicial
+    function showOnlyLogin() {
+      loginCard.classList.remove("hide");
+      formArea.classList.add("hide");
+      btnLogout.classList.add("hide");
+      btnOpenLogin.classList.remove("hide");
+      tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">Faça login para visualizar os itens</td></tr>';
+      filterCount.textContent = "0 itens";
+      viewBox.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>Selecione um item para visualizar</p></div>';
+    }
+
+    function showAppForUser(user) {
+      loginCard.classList.add("hide");
+      formArea.classList.remove("hide");
+      btnLogout.classList.remove("hide");
+      btnOpenLogin.classList.add("hide");
+      showToast('success', `Logado como ${user.email}`);
+      // após login, carregue items do Firestore (exemplo)
+      loadItems();
+    }
+
+    // Toasts simples
+    function showToast(type, text) {
+      const t = document.createElement("div");
+      t.className = "toast";
+      t.textContent = text;
+      if (type === "error") t.style.borderLeftColor = "#ef4444";
+      if (type === "success") t.style.borderLeftColor = "#10b981";
+      toastContainer.appendChild(t);
+      setTimeout(()=> { t.style.opacity = "0"; t.style.transform = "translateX(10px)"; }, 3500);
+      setTimeout(()=> t.remove(), 4200);
+    }
+
+    // Cria conta demo (ignora se já existir)
+    async function createDemoAccount() {
+      try {
+        await auth.createUserWithEmailAndPassword(DEMO_EMAIL, DEMO_PASS);
+        showToast('success', 'Conta de demonstração criada. Você pode entrar com admin@teste.com / 123456');
+      } catch (err) {
+        if (err.code === 'auth/email-already-in-use') {
+          showToast('warning', 'Conta demo já existe. Tente entrar com admin@teste.com');
+        } else {
+          console.error(err);
+          showToast('error', 'Erro ao criar conta demo: ' + err.message);
+        }
+      }
+    }
+
+    // Login
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      loginError.style.display = "none";
+      const email = emailInput.value.trim();
+      const pass  = passwordInput.value.trim();
+
+      try {
+        await auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+        await auth.signInWithEmailAndPassword(email, pass);
+        // onAuthStateChanged fará o resto
+      } catch (err) {
+        console.error(err);
+        loginError.textContent = (err.code === 'auth/wrong-password') ? 'Senha incorreta' : err.message;
+        loginError.style.display = "block";
+        showToast('error', 'Erro de login: ' + err.message);
+      }
+    });
+
+    btnCreateDemo.addEventListener("click", () => {
+      createDemoAccount();
+    });
+
+    btnOpenLogin.addEventListener("click", () => {
+      // rolar para o login e focar
+      loginCard.scrollIntoView({behavior:'smooth',block:'center'});
+      emailInput.focus();
+    });
+
+    btnLogout.addEventListener("click", async () => {
+      try {
+        await auth.signOut();
+        showOnlyLogin();
+        showToast('success', 'Desconectado com sucesso');
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Erro ao sair: ' + err.message);
+      }
+    });
+
+    // Monitor de autenticação
+    auth.onAuthStateChanged((user) => {
+      if (user) {
+        showAppForUser(user);
+      } else {
+        showOnlyLogin();
+      }
+    });
+
+    // Exemplo: carregar itens do Firestore (coleção "patrimonio") somente após login
+    async function loadItems() {
+      try {
+        const snap = await db.collection('patrimonio').limit(200).get();
+        if (snap.empty) {
+          tableBody.innerHTML = '<tr><td colspan="4" class="empty-state">Nenhum item cadastrado</td></tr>';
+          filterCount.textContent = '0 itens';
+          return;
+        }
+        const rows = [];
+        snap.forEach(doc => {
+          const d = doc.data();
+          rows.push({ id: doc.id, ...d });
+        });
+
+        filterCount.textContent = `${rows.length} itens`;
+
+        tableBody.innerHTML = rows.map(item => `
+          <tr>
+            <td>${item.numero || '-'}</td>
+            <td>${item.equipamento || '-'}</td>
+            <td>${item.setor || '-'}</td>
+            <td>
+              <button class="btn btn-ghost btn-sm" data-id="${item.id}" onclick="viewItem('${item.id}')"><i class="fas fa-eye"></i> Ver</button>
+            </td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Erro ao carregar itens: ' + err.message);
+      }
+    }
+
+    // Função global para visualizar item (usada no botão da tabela)
+    window.viewItem = async function(id) {
+      try {
+        const doc = await db.collection('patrimonio').doc(id).get();
+        if (!doc.exists) {
+          viewBox.innerHTML = '<div class="empty-state">Item não encontrado</div>';
+          return;
+        }
+        const data = doc.data();
+        viewBox.innerHTML = `
+          <div style="padding:10px">
+            <h3 style="margin-bottom:8px">${data.equipamento || 'Sem nome'}</h3>
+            <div class="text-muted" style="margin-bottom:8px">Nº Patrimônio: ${data.numero || '-'}</div>
+            <div style="margin-bottom:8px">Setor: ${data.setor || '-'}</div>
+            <div style="margin-top:12px">${data.configuracao ? '<pre style="white-space:pre-wrap;background:#f7f7f7;padding:10px;border-radius:6px">'+data.configuracao+'</pre>':''}</div>
+          </div>
+        `;
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Erro ao carregar item: ' + err.message);
+      }
+    };
+
+    // Salvar novo item (apenas disponível se estiver logado)
+    document.getElementById('btnSave').addEventListener('click', async () => {
+      const numero = document.getElementById('numeroPatrimonio').value.trim();
+      const equipamento = document.getElementById('equipamento').value.trim();
+      const setor = document.getElementById('setor').value.trim();
+      if (!numero || !equipamento) { showToast('error','Preencha Nº Patrimônio e Equipamento'); return; }
+      try {
+        const docRef = await db.collection('patrimonio').add({ numero, equipamento, setor, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+        showToast('success', 'Item salvo: ' + docRef.id);
+        // limpa campos
+        document.getElementById('numeroPatrimonio').value = '';
+        document.getElementById('equipamento').value = '';
+        document.getElementById('setor').value = '';
+        // recarrega itens
+        loadItems();
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Erro ao salvar: ' + err.message);
+      }
+    });
+
+    // Cancelar edição
+    document.getElementById('btnCancel').addEventListener('click', () => {
+      document.getElementById('numeroPatrimonio').value = '';
+      document.getElementById('equipamento').value = '';
+      document.getElementById('setor').value = '';
+      showToast('success','Formulário limpo');
+    });
+
+    // Conectividade / estado online
+    function updateOnlineStatus() {
+      const on = navigator.onLine;
+      onlineText.textContent = on ? 'Online' : 'Offline';
+      document.getElementById('onlineStatus').classList.toggle('status-offline', !on);
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    // Inicializa: tenta criar conta demo silenciosamente para facilitar testes
+    (async function init() {
+      // não sobrescreve se já existir
+      try {
+        await auth.createUserWithEmailAndPassword(DEMO_EMAIL, DEMO_PASS);
+        console.log('Conta demo criada:', DEMO_EMAIL);
+      } catch (err) {
+        if (err.code !== 'auth/email-already-in-use' && err.code !== 'auth/invalid-email') {
+          console.warn('Erro ao criar conta demo (ignorado):', err.message);
+        }
+      }
+      // Apenas garantir que a UI inicial fique correta até o listener de auth rodar
+      showOnlyLogin();
+    })();
+
+  </script>
+</body>
+</html>
