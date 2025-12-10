@@ -1,65 +1,63 @@
-async function compressImageToBase64(fileOrBlob, maxKB = 100) {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const url = URL.createObjectURL(fileOrBlob);
+// storage-cloudinary.js
+(async function(){
+  const CLOUD_NAME = "dwanrvvob";            // você confirmou
+  const UPLOAD_PRESET = "unsigned_patrimonio";
 
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
+  async function compressImageToBase64(fileOrBlob, maxKB = 100) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(fileOrBlob);
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const MAX_WIDTH = 1280;
+          const ratio = Math.min(1, MAX_WIDTH / img.width);
+          canvas.width = Math.round(img.width * ratio);
+          canvas.height = Math.round(img.height * ratio);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      const MAX_WIDTH = 1280;
-      const ratio = MAX_WIDTH / img.width;
-
-      canvas.width = MAX_WIDTH;
-      canvas.height = img.height * ratio;
-
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-      let quality = 0.7;
-
-      function tryCompress() {
-        const base64 = canvas.toDataURL("image/jpeg", quality);
-        const sizeKB = Math.round((base64.length * 0.75) / 1024);
-
-        if (sizeKB <= maxKB || quality <= 0.2) {
-          resolve(base64);
-        } else {
-          quality -= 0.1;
-          tryCompress();
-        }
-      }
-
-      tryCompress();
-    };
-
-    img.src = url;
-  });
-}
-
-async function uploadImageCloudinary(blobOriginal) {
-  const compressedBase64 = await compressImageToBase64(blobOriginal, 100);
-
-  const cloudName = "root"; // <<<<<< SOMENTE ISSO
-  const uploadPreset = "unsigned_patrimonio"; // <<<< ESTE É O NOME DO PRESET
-
-  const formData = new FormData();
-  formData.append("file", compressedBase64);
-  formData.append("upload_preset", uploadPreset);
-  formData.append("folder", "produtos");
-
-  const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-    method: "POST",
-    body: formData
-  });
-
-  const data = await response.json();
-
-  if (!data.secure_url) {
-    console.error(data);
-    throw new Error("Erro ao enviar para Cloudinary");
+          let quality = 0.75;
+          (function tryCompress(){
+            canvas.toDataURL('image/jpeg', quality);
+            const base64 = canvas.toDataURL('image/jpeg', quality);
+            const sizeKB = Math.round((base64.length * 0.75) / 1024);
+            if (sizeKB <= maxKB || quality <= 0.2) {
+              resolve(base64);
+            } else {
+              quality -= 0.1;
+              tryCompress();
+            }
+          })();
+        } catch (e) { reject(e); }
+      };
+      img.onerror = (e) => reject(e);
+      img.src = url;
+    });
   }
 
-  return data.secure_url;
-}
+  async function uploadImageCloudinary(blob) {
+    const base64 = await compressImageToBase64(blob, 100); // data:image/jpeg;base64,...
+    const form = new FormData();
+    form.append('file', base64);
+    form.append('upload_preset', UPLOAD_PRESET);
+    form.append('folder', 'produtos');
 
-window.uploadImageCloudinary = uploadImageCloudinary;
+    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
+      method: 'POST',
+      body: form
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(()=>null);
+      console.error('Cloudinary upload error', res.status, text);
+      throw new Error('Falha no upload para Cloudinary');
+    }
+
+    const data = await res.json();
+    if (!data.secure_url) throw new Error('Resposta inválida Cloudinary');
+    return data.secure_url;
+  }
+
+  window.uploadImageCloudinary = uploadImageCloudinary;
+})();
