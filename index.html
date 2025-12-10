@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#667eea">
   <meta name="mobile-web-app-capable" content="yes">
-  <title>Sistema de Patrimônio - Sincronizado</title>
+  <title>Sistema de Patrimônio - Completo</title>
 
   <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiU2lzdGVtYSBkZSBQYXRyaW1vbmkiLCJzaG9ydF9uYW1lIjoiUGF0cmltw6FuaW8iLCJ2ZXJzaW9uIjoiMS4wIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJpY29ucyI6W119">
 
@@ -70,7 +70,7 @@
 <body>
   <div class="app" id="app">
     <header>
-      <h1>📋 Sistema de Patrimônio - Sincronizado</h1>
+      <h1>📋 Sistema de Patrimônio - Completo</h1>
       <div class="controls" id="headerControls">
         <div id="syncStatus" class="sync-status hide">🔄 Sincronizando...</div>
         <div id="currentUserBox" class="muted small hide">Conectado como <strong id="currentUser"></strong></div>
@@ -91,7 +91,7 @@
               <label>Usuário</label>
               <input type="text" id="username" placeholder="usuário" autocomplete="username" value="admin">
               <label>Senha</label>
-              <input type="text" id="password" placeholder="senha" autocomplete="current-password" value="admin123">
+              <input type="password" id="password" placeholder="senha" autocomplete="current-password" value="admin123">
               <div style="margin-top:10px;display:flex;gap:8px">
                 <button class="btn" type="submit" style="background:var(--primary);color:#fff">Entrar</button>
                 <button type="button" id="btnFillDemo" class="btn" style="background:#eef4ff">Demo</button>
@@ -107,22 +107,21 @@
           <h3 id="formTitle">➕ Adicionar item</h3>
           <div id="photoCounter" class="small" style="margin-bottom:8px">0/10 fotos</div>
           
-          <!-- CORREÇÃO: FORM sem type="submit" no botão principal -->
           <div id="patrimonioForm">
             <div class="form-row">
               <div>
-                <label for="numeroPatrimonio">Número de Patrimônio</label>
+                <label for="numeroPatrimonio">Número de Patrimônio *</label>
                 <input id="numeroPatrimonio" type="text" required>
               </div>
               <div>
-                <label for="equipamento">Equipamento</label>
+                <label for="equipamento">Equipamento *</label>
                 <input id="equipamento" type="text" required>
               </div>
             </div>
 
             <div class="form-row" style="margin-top:10px">
               <div>
-                <label for="setor">Setor</label>
+                <label for="setor">Setor *</label>
                 <input id="setor" type="text" required>
               </div>
               <div>
@@ -133,34 +132,40 @@
 
             <div style="margin-top:10px">
               <label for="configuracao">Configuração</label>
-              <input id="configuracao" type="text">
+              <textarea id="configuracao" rows="3"></textarea>
             </div>
 
             <div style="margin-top:12px">
               <label>Fotos (máx. 10 por item)</label>
               <div class="file-row">
                 <input id="fileInput" type="file" accept="image/*" multiple>
-                <button type="button" id="btnOpenCamera" class="btn" style="background:#17a2b8;color:#fff">Câmera</button>
+                <button type="button" id="btnOpenCamera" class="btn" style="background:#17a2b8;color:#fff">📸 Câmera</button>
                 <div id="uploadStatus" class="small muted">Nenhuma foto</div>
               </div>
               <div id="photoPreview" class="photo-preview"></div>
             </div>
 
-            <div style="margin-top:12px;display:flex;gap:8px">
-              <!-- CORREÇÃO: type="button" em vez de type="submit" -->
-              <button class="btn" type="button" style="background:var(--primary);color:#fff" id="btnSave">Salvar</button>
-              <button class="btn" type="button" id="btnCancel" style="background:#f3f3f3">Cancelar</button>
-              <button class="btn" type="button" id="btnNew" style="background:#eef4ff">Novo item</button>
+            <div style="margin-top:20px;display:flex;gap:8px">
+              <button class="btn" type="button" style="background:var(--primary);color:#fff" id="btnSave">💾 Salvar</button>
+              <button class="btn" type="button" id="btnCancel" style="background:#f3f3f3">❌ Cancelar</button>
+              <button class="btn" type="button" id="btnNew" style="background:#eef4ff">➕ Novo item</button>
             </div>
           </div>
         </div>
 
-        <div id="cameraModal" class="hide" style="margin-top:12px">
-          <h4>Câmera</h4>
-          <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button id="btnCapture" class="btn" style="background:#28a745;color:#fff">Capturar</button>
-            <button id="btnCloseCamera" class="btn" style="background:#dc3545;color:#fff">Fechar</button>
+        <!-- Camera Modal -->
+        <div id="cameraModal" class="modal hide">
+          <div class="content">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <h3>📸 Câmera</h3>
+              <button id="btnCloseCamera" class="btn" style="background:#dc3545;color:#fff">✖ Fechar</button>
+            </div>
+            <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
+            <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
+              <button id="btnCapture" class="btn" style="background:#28a745;color:#fff;padding:12px 24px;font-size:16px">
+                📷 Capturar Foto
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -180,7 +185,7 @@
                   <th>Equipamento</th>
                   <th>Setor</th>
                   <th>Fotos</th>
-                  <th>Ações</th>
+                  <th style="width:220px">Ações</th>
                 </tr>
               </thead>
               <tbody id="patrimonioTable">
@@ -198,38 +203,65 @@
     </main>
   </div>
 
+  <!-- Modal: Histórico de Manutenção -->
   <div id="modalHistory" class="modal hide">
     <div class="content">
       <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3>📜 Histórico</h3>
-        <button id="closeHistory" class="btn">Fechar</button>
+        <h3>📜 Histórico de Manutenção</h3>
+        <button id="closeHistory" class="btn">✖ Fechar</button>
       </div>
-      <div id="historyContent" style="margin-top:12px"></div>
+      <div style="margin-top:12px;padding:12px;background:#f8f9fa;border-radius:8px">
+        <strong id="historyItemTitle"></strong>
+      </div>
+      <div id="historyContent" style="margin-top:16px;max-height:300px;overflow-y:auto"></div>
 
-      <div style="margin-top:12px">
-        <h4>Adicionar manutenção</h4>
+      <div style="margin-top:20px;padding-top:16px;border-top:2px solid #eee">
+        <h4>➕ Adicionar manutenção</h4>
         <form id="maintenanceForm">
-          <label>Data</label>
-          <input type="date" id="maintenanceDate" required>
-          <label style="margin-top:8px">Descrição</label>
-          <textarea id="maintenanceDescription" required></textarea>
-          <div style="margin-top:8px">
-            <button class="btn" type="submit" style="background:var(--primary);color:#fff">Adicionar</button>
+          <label>Data *</label>
+          <input type="date" id="maintenanceDate" required style="margin-bottom:12px">
+          
+          <label>Descrição *</label>
+          <textarea id="maintenanceDescription" required rows="3" placeholder="Descreva a manutenção realizada..."></textarea>
+          
+          <div style="margin-top:16px;display:flex;gap:8px">
+            <button class="btn" type="submit" style="background:var(--primary);color:#fff">➕ Adicionar</button>
+            <button class="btn" type="button" id="clearHistoryForm" style="background:#f3f3f3">Limpar</button>
           </div>
         </form>
       </div>
     </div>
   </div>
 
+  <!-- Modal: Sincronização -->
   <div id="modalSync" class="modal hide">
     <div class="content">
       <div style="display:flex;justify-content:space-between;align-items:center">
         <h3>🔄 Sincronização</h3>
-        <button id="closeSync" class="btn">Fechar</button>
+        <button id="closeSync" class="btn">✖ Fechar</button>
       </div>
-      <div id="syncContent" style="margin-top:12px">
-        <div id="syncInfo" class="small"></div>
-        <div id="syncProgress" style="margin-top:12px"></div>
+      <div id="syncContent" style="margin-top:16px">
+        <div id="syncInfo" style="padding:16px;background:#f8f9fa;border-radius:8px;margin-bottom:16px"></div>
+        
+        <div style="margin-top:20px">
+          <h4>📤 Enviar Backup</h4>
+          <p class="small">Salva todos os itens na nuvem (Cloudinary)</p>
+          <button id="btnDoBackup" class="btn" style="background:#28a745;color:#fff;margin-top:8px">
+            ⬆️ Enviar Backup Agora
+          </button>
+        </div>
+        
+        <div style="margin-top:24px;padding-top:16px;border-top:2px solid #eee">
+          <h4>📥 Restaurar Backup</h4>
+          <p class="small">Cole a URL do backup para restaurar em outro dispositivo:</p>
+          <div style="margin-top:12px">
+            <input type="text" id="backupUrlInput" placeholder="https://res.cloudinary.com/..." 
+                   style="width:100%;padding:10px;border:1px solid #ddd;border-radius:6px;margin-bottom:12px">
+            <button id="btnDoRestore" class="btn" style="background:#17a2b8;color:#fff">
+              ⬇️ Restaurar da URL
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -240,738 +272,986 @@
     const UPLOAD_PRESET_FOTOS = 'EETI_fotos';
     const UPLOAD_PRESET_BACKUP = 'EETI_backups';
     const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`;
+    
     const users = { admin: 'admin123' };
     const MAX_PHOTOS_PER_ITEM = 10;
 
-    /* ================= STORAGE ================= */
-    window.storage = {
-      list(prefix = '') {
-        const keys = Object.keys(localStorage).filter(k => k.startsWith(prefix));
-        return { keys };
+    /* ================= STORAGE SIMPLIFICADO ================= */
+    const storage = {
+      getItems() {
+        const items = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key.startsWith('patrimonio:')) {
+            try {
+              const item = JSON.parse(localStorage.getItem(key));
+              items.push(item);
+            } catch (e) { console.error('Erro ao parsear item:', e); }
+          }
+        }
+        return items;
       },
-      get(key) { return { value: localStorage.getItem(key) }; },
-      set(key, value) { localStorage.setItem(key, value); },
-      delete(key) { localStorage.removeItem(key); }
+      
+      saveItem(item) {
+        localStorage.setItem(`patrimonio:${item.id}`, JSON.stringify(item));
+      },
+      
+      deleteItem(id) {
+        localStorage.removeItem(`patrimonio:${id}`);
+      },
+      
+      getItem(id) {
+        const data = localStorage.getItem(`patrimonio:${id}`);
+        return data ? JSON.parse(data) : null;
+      },
+      
+      clearAll() {
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key.startsWith('patrimonio:')) {
+            keys.push(key);
+          }
+        }
+        keys.forEach(key => localStorage.removeItem(key));
+      },
+      
+      importItems(items) {
+        items.forEach(item => {
+          this.saveItem(item);
+        });
+      }
     };
 
-    /* ================= ESTADO ================= */
-    let currentUser = localStorage.getItem('currentUser') || null; // PERSISTE LOGIN
+    /* ================= ESTADO GLOBAL ================= */
+    let currentUser = localStorage.getItem('currentUser') || null;
     let tempPhotos = [];
     let editingId = null;
     let cameraStream = null;
-    let lastBackupUrl = null;
+    let currentHistoryItemId = null;
 
-    /* ================= ELEMENTOS ================= */
-    const elementos = {
-      app: document.getElementById('app'),
-      loginForm: document.getElementById('loginForm'),
-      loginError: document.getElementById('loginError'),
-      btnOpenLogin: document.getElementById('btnOpenLogin'),
-      btnLogout: document.getElementById('btnLogout'),
-      currentUserBox: document.getElementById('currentUserBox'),
-      currentUserSpan: document.getElementById('currentUser'),
-      syncStatus: document.getElementById('syncStatus'),
-      formArea: document.getElementById('formArea'),
-      patrimonioForm: document.getElementById('patrimonioForm'),
-      btnSave: document.getElementById('btnSave'),
-      btnCancel: document.getElementById('btnCancel'),
-      btnNew: document.getElementById('btnNew'),
-      photoCounter: document.getElementById('photoCounter'),
-      numeroPatrimonio: document.getElementById('numeroPatrimonio'),
-      equipamento: document.getElementById('equipamento'),
-      setor: document.getElementById('setor'),
-      modelo: document.getElementById('modelo'),
-      configuracao: document.getElementById('configuracao'),
-      patrimonioTable: document.getElementById('patrimonioTable'),
-      totalCount: document.getElementById('totalCount'),
-      totalFotos: document.getElementById('totalFotos'),
-      viewBox: document.getElementById('viewBox'),
-      fileInput: document.getElementById('fileInput'),
-      photoPreview: document.getElementById('photoPreview'),
-      uploadStatus: document.getElementById('uploadStatus'),
-      btnOpenCamera: document.getElementById('btnOpenCamera'),
-      cameraModal: document.getElementById('cameraModal'),
-      cameraVideo: document.getElementById('cameraVideo'),
-      btnCapture: document.getElementById('btnCapture'),
-      btnCloseCamera: document.getElementById('btnCloseCamera'),
-      modalHistory: document.getElementById('modalHistory'),
-      historyContent: document.getElementById('historyContent'),
-      maintenanceForm: document.getElementById('maintenanceForm'),
-      maintenanceDate: document.getElementById('maintenanceDate'),
-      maintenanceDescription: document.getElementById('maintenanceDescription'),
-      closeHistory: document.getElementById('closeHistory'),
-      modalSync: document.getElementById('modalSync'),
-      syncContent: document.getElementById('syncContent'),
-      syncInfo: document.getElementById('syncInfo'),
-      syncProgress: document.getElementById('syncProgress'),
-      closeSync: document.getElementById('closeSync'),
-      btnSyncUp: document.getElementById('btnSyncUp'),
-      btnSyncDown: document.getElementById('btnSyncDown')
-    };
+    /* ================= INICIALIZAÇÃO ================= */
+    document.addEventListener('DOMContentLoaded', function() {
+      initApp();
+    });
 
-    /* ================= PERSISTÊNCIA DE LOGIN ================= */
-    function checkLoginStatus() {
+    function initApp() {
+      // Verificar login persistido
       if (currentUser) {
-        // Se já está logado, mostrar app diretamente
         showAppUI();
         loadData();
       } else {
         showLogin();
       }
+      
+      // Configurar event listeners
+      setupEventListeners();
+      updateStats();
     }
 
     /* ================= AUTENTICAÇÃO ================= */
     function showLogin() {
       document.getElementById('loginBox').classList.remove('hide');
-      elementos.formArea.classList.add('hide');
-      elementos.btnOpenLogin.classList.add('hide');
-      elementos.btnLogout.classList.add('hide');
-      elementos.currentUserBox.classList.add('hide');
+      document.getElementById('formArea').classList.add('hide');
+      document.getElementById('btnOpenLogin').classList.add('hide');
+      document.getElementById('btnLogout').classList.add('hide');
+      document.getElementById('currentUserBox').classList.add('hide');
     }
     
     function showAppUI() {
       document.getElementById('loginBox').classList.add('hide');
-      elementos.formArea.classList.remove('hide');
-      elementos.currentUserSpan.textContent = currentUser;
-      elementos.currentUserBox.classList.remove('hide');
-      elementos.btnLogout.classList.remove('hide');
-      elementos.btnOpenLogin.classList.add('hide');
-      atualizarEstatisticasUI();
+      document.getElementById('formArea').classList.remove('hide');
+      document.getElementById('currentUser').textContent = currentUser;
+      document.getElementById('currentUserBox').classList.remove('hide');
+      document.getElementById('btnLogout').classList.remove('hide');
+      document.getElementById('btnOpenLogin').classList.add('hide');
     }
 
-    // CORREÇÃO: Prevenir submit padrão do formulário
-    elementos.loginForm.addEventListener('submit', (e) => {
-      e.preventDefault(); // IMPEDE RECARREGAMENTO DA PÁGINA
+    document.getElementById('loginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
       const user = document.getElementById('username').value.trim();
       const pass = document.getElementById('password').value.trim();
       
       if (users[user] && users[user] === pass) {
         currentUser = user;
-        localStorage.setItem('currentUser', user); // SALVA NO LOCALSTORAGE
+        localStorage.setItem('currentUser', user);
         showAppUI();
         loadData();
       } else {
-        elementos.loginError.textContent = 'Usuário ou senha incorretos';
-        elementos.loginError.classList.remove('hide');
-        setTimeout(() => elementos.loginError.classList.add('hide'), 3000);
+        document.getElementById('loginError').textContent = 'Usuário ou senha incorretos';
+        document.getElementById('loginError').classList.remove('hide');
+        setTimeout(() => document.getElementById('loginError').classList.add('hide'), 3000);
       }
     });
 
-    document.getElementById('btnFillDemo').addEventListener('click', () => {
+    document.getElementById('btnFillDemo').addEventListener('click', function() {
       document.getElementById('username').value = 'admin';
       document.getElementById('password').value = 'admin123';
     });
 
-    elementos.btnLogout.addEventListener('click', () => {
+    document.getElementById('btnLogout').addEventListener('click', function() {
       currentUser = null;
-      localStorage.removeItem('currentUser'); // REMOVE DO LOCALSTORAGE
-      elementos.currentUserBox.classList.add('hide');
-      elementos.btnLogout.classList.add('hide');
-      elementos.btnOpenLogin.classList.remove('hide');
+      localStorage.removeItem('currentUser');
       showLogin();
     });
 
-    /* ================= UPLOAD PARA CLOUDINARY ================= */
-    async function uploadParaCloudinary(fileOuBlob, tipo = 'foto') {
-      const form = new FormData();
-      form.append('file', fileOuBlob);
-      
-      if (tipo === 'backup') {
-        form.append('upload_preset', UPLOAD_PRESET_BACKUP);
-      } else {
-        form.append('upload_preset', UPLOAD_PRESET_FOTOS);
-        form.append('quality', '70');
-        form.append('width', '1200');
-        form.append('fetch_format', 'auto');
-      }
-      
+    document.getElementById('btnOpenLogin').addEventListener('click', function() {
+      showLogin();
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+
+    /* ================= CÂMERA - FUNCIONAL ================= */
+    document.getElementById('btnOpenCamera').addEventListener('click', async function() {
       try {
-        const response = await fetch(CLOUDINARY_URL, {
-          method: 'POST',
-          body: form
-        });
-        
-        const data = await response.json();
-        
-        if (data.secure_url) {
-          console.log(`✅ Upload bem-sucedido!`);
-          return data.secure_url;
-        } else {
-          throw new Error(data.error?.message || 'Upload falhou');
+        // Verificar permissões
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          alert('Seu navegador não suporta acesso à câmera ou você não está em HTTPS/localhost.');
+          return;
         }
         
-      } catch (erro) {
-        console.error(`❌ Erro no upload:`, erro);
-        throw erro;
+        // Solicitar acesso à câmera
+        cameraStream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'environment' },
+          audio: false 
+        });
+        
+        // Configurar vídeo
+        const video = document.getElementById('cameraVideo');
+        video.srcObject = cameraStream;
+        document.getElementById('cameraModal').classList.remove('hide');
+        
+      } catch (error) {
+        console.error('Erro ao acessar câmera:', error);
+        alert(`Não foi possível acessar a câmera: ${error.message}`);
       }
+    });
+
+    document.getElementById('btnCloseCamera').addEventListener('click', function() {
+      stopCamera();
+      document.getElementById('cameraModal').classList.add('hide');
+    });
+
+    document.getElementById('btnCapture').addEventListener('click', async function() {
+      if (!cameraStream) return;
+      
+      try {
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Converter para blob
+        canvas.toBlob(async function(blob) {
+          if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
+            alert(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido!`);
+            return;
+          }
+          
+          try {
+            document.getElementById('uploadStatus').textContent = 'Enviando foto...';
+            
+            // Upload para Cloudinary
+            const formData = new FormData();
+            formData.append('file', blob);
+            formData.append('upload_preset', UPLOAD_PRESET_FOTOS);
+            formData.append('quality', '80');
+            
+            const response = await fetch(CLOUDINARY_URL, {
+              method: 'POST',
+              body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (data.secure_url) {
+              // Adicionar foto
+              tempPhotos.push(data.secure_url);
+              renderPhotoPreview();
+              document.getElementById('uploadStatus').textContent = 'Foto capturada!';
+              
+              // Feedback visual
+              setTimeout(() => {
+                document.getElementById('uploadStatus').textContent = `${tempPhotos.length} foto(s)`;
+              }, 2000);
+              
+              // Fechar câmera após captura
+              stopCamera();
+              document.getElementById('cameraModal').classList.add('hide');
+              
+            } else {
+              throw new Error('Upload falhou');
+            }
+            
+          } catch (error) {
+            console.error('Erro upload:', error);
+            document.getElementById('uploadStatus').textContent = 'Erro ao enviar';
+          }
+        }, 'image/jpeg', 0.9);
+        
+      } catch (error) {
+        console.error('Erro captura:', error);
+        alert('Erro ao capturar foto');
+      }
+    });
+
+    function stopCamera() {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+      }
+      document.getElementById('cameraVideo').srcObject = null;
     }
 
     /* ================= GESTÃO DE FOTOS ================= */
-    function addTempPhotoUrl(url) {
-      if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
-        alert(`⚠ Limite de ${MAX_PHOTOS_PER_ITEM} fotos por item atingido!`);
-        return false;
-      }
-      tempPhotos.push(url);
-      renderPhotoPreview();
-      return true;
-    }
-
-    function renderPhotoPreview() {
-      elementos.photoPreview.innerHTML = '';
-      elementos.photoCounter.textContent = `${tempPhotos.length}/${MAX_PHOTOS_PER_ITEM} fotos`;
-      
-      if (tempPhotos.length === 0) {
-        const emptyMsg = document.createElement('div');
-        emptyMsg.className = 'small muted';
-        emptyMsg.textContent = 'Nenhuma foto adicionada';
-        emptyMsg.style.width = '100%';
-        elementos.photoPreview.appendChild(emptyMsg);
-        return;
-      }
-      
-      tempPhotos.forEach((url, idx) => {
-        const div = document.createElement('div');
-        div.className = 'item';
-        
-        const img = document.createElement('img');
-        img.src = url;
-        img.loading = 'lazy';
-        
-        const btn = document.createElement('button');
-        btn.className = 'photo-remove';
-        btn.innerText = '×';
-        btn.title = 'Remover';
-        btn.addEventListener('click', () => {
-          tempPhotos.splice(idx, 1);
-          renderPhotoPreview();
-        });
-        
-        div.appendChild(img);
-        div.appendChild(btn);
-        elementos.photoPreview.appendChild(div);
-      });
-    }
-
-    elementos.fileInput.addEventListener('change', async (e) => {
+    document.getElementById('fileInput').addEventListener('change', async function(e) {
       const files = Array.from(e.target.files || []);
-      for (const f of files) {
+      
+      for (const file of files) {
         if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
           alert(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido!`);
           break;
         }
         
         try {
-          elementos.uploadStatus.textContent = 'Enviando...';
-          const url = await uploadParaCloudinary(f, 'foto');
-          addTempPhotoUrl(url);
-          elementos.uploadStatus.textContent = 'Enviado!';
-          setTimeout(() => elementos.uploadStatus.textContent = 'Nenhuma foto', 2000);
-        } catch (err) {
-          console.error('Erro upload foto:', err);
-          elementos.uploadStatus.textContent = 'Erro no envio';
+          document.getElementById('uploadStatus').textContent = 'Enviando...';
+          
+          // Upload para Cloudinary
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('upload_preset', UPLOAD_PRESET_FOTOS);
+          formData.append('quality', '80');
+          
+          const response = await fetch(CLOUDINARY_URL, {
+            method: 'POST',
+            body: formData
+          });
+          
+          const data = await response.json();
+          
+          if (data.secure_url) {
+            tempPhotos.push(data.secure_url);
+            renderPhotoPreview();
+            document.getElementById('uploadStatus').textContent = `${tempPhotos.length} foto(s)`;
+          }
+          
+        } catch (error) {
+          console.error('Erro upload:', error);
+          document.getElementById('uploadStatus').textContent = 'Erro ao enviar';
         }
       }
-      elementos.fileInput.value = '';
+      
+      this.value = ''; // Limpar input
     });
 
-    /* ================= CÂMERA - CORREÇÃO ================= */
-    elementos.btnOpenCamera.addEventListener('click', async () => {
-      if (cameraStream) {
-        // Se já está aberta, apenas mostrar
-        elementos.cameraModal.classList.remove('hide');
+    function renderPhotoPreview() {
+      const container = document.getElementById('photoPreview');
+      const counter = document.getElementById('photoCounter');
+      
+      container.innerHTML = '';
+      counter.textContent = `${tempPhotos.length}/${MAX_PHOTOS_PER_ITEM} fotos`;
+      
+      if (tempPhotos.length === 0) {
+        container.innerHTML = '<div class="small muted" style="width:100%">Nenhuma foto adicionada</div>';
+        return;
+      }
+      
+      tempPhotos.forEach((url, index) => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.innerHTML = `
+          <img src="${url}" alt="Foto ${index + 1}">
+          <button class="photo-remove" data-index="${index}" title="Remover">×</button>
+        `;
+        container.appendChild(div);
+      });
+      
+      // Adicionar event listeners para remover fotos
+      container.querySelectorAll('.photo-remove').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          tempPhotos.splice(index, 1);
+          renderPhotoPreview();
+        });
+      });
+    }
+
+    /* ================= CRUD - COMPLETO ================= */
+    document.getElementById('btnSave').addEventListener('click', async function() {
+      if (!currentUser) {
+        alert('Faça login para continuar');
+        return;
+      }
+      
+      // Validar campos obrigatórios
+      const numero = document.getElementById('numeroPatrimonio').value.trim();
+      const equipamento = document.getElementById('equipamento').value.trim();
+      const setor = document.getElementById('setor').value.trim();
+      
+      if (!numero) {
+        alert('Preencha o número de patrimônio');
+        document.getElementById('numeroPatrimonio').focus();
+        return;
+      }
+      
+      if (!equipamento) {
+        alert('Preencha o equipamento');
+        document.getElementById('equipamento').focus();
+        return;
+      }
+      
+      if (!setor) {
+        alert('Preencha o setor');
+        document.getElementById('setor').focus();
         return;
       }
       
       try {
-        // Verificar se está em HTTPS ou localhost
-        if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-          alert('A câmera requer HTTPS ou localhost para funcionar. Para testar localmente, use um servidor local como Live Server.');
-          return;
-        }
-        
-        // Tentar primeiro a câmera traseira, depois qualquer câmera
-        const constraints = {
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: false
+        // Criar objeto do item
+        const item = {
+          id: editingId || 'item_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+          numeroPatrimonio: numero,
+          equipamento: equipamento,
+          setor: setor,
+          modelo: document.getElementById('modelo').value.trim(),
+          configuracao: document.getElementById('configuracao').value.trim(),
+          photos: [...tempPhotos],
+          history: [],
+          createdBy: currentUser,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         };
         
-        cameraStream = await navigator.mediaDevices.getUserMedia(constraints)
-          .catch(async () => {
-            // Fallback: qualquer câmera
-            return await navigator.mediaDevices.getUserMedia({
-              video: true,
-              audio: false
-            });
-          });
-        
-        elementos.cameraVideo.srcObject = cameraStream;
-        elementos.cameraModal.classList.remove('hide');
-        
-      } catch (err) {
-        console.error('Erro câmera:', err);
-        alert('Não foi possível acessar a câmera. Verifique as permissões ou use HTTPS.');
-      }
-    });
-
-    elementos.btnCloseCamera.addEventListener('click', () => {
-      if (cameraStream) {
-        cameraStream.getTracks().forEach(track => track.stop());
-        cameraStream = null;
-      }
-      elementos.cameraVideo.srcObject = null;
-      elementos.cameraModal.classList.add('hide');
-    });
-
-    elementos.btnCapture.addEventListener('click', async () => {
-      if (!cameraStream || tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
-        if (tempPhotos.length >= MAX_PHOTOS_PER_ITEM) {
-          alert(`Limite de ${MAX_PHOTOS_PER_ITEM} fotos atingido!`);
-        }
-        return;
-      }
-      
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = elementos.cameraVideo.videoWidth;
-        canvas.height = elementos.cameraVideo.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(elementos.cameraVideo, 0, 0, canvas.width, canvas.height);
-        
-        canvas.toBlob(async (blob) => {
-          try {
-            elementos.uploadStatus.textContent = 'Enviando foto...';
-            const url = await uploadParaCloudinary(blob, 'foto');
-            addTempPhotoUrl(url);
-            elementos.uploadStatus.textContent = 'Foto capturada!';
-            setTimeout(() => elementos.uploadStatus.textContent = 'Nenhuma foto', 2000);
-          } catch (err) {
-            console.error('Erro upload câmera:', err);
-            elementos.uploadStatus.textContent = 'Erro ao enviar';
+        // Se for edição, preservar histórico
+        if (editingId) {
+          const existing = storage.getItem(editingId);
+          if (existing && existing.history) {
+            item.history = existing.history;
           }
-        }, 'image/jpeg', 0.8);
-        
-      } catch (err) {
-        console.error('Erro captura:', err);
-        alert('Erro ao capturar foto');
-      }
-    });
-
-    /* ================= CRUD ITEMS - CORREÇÃO ================= */
-    // CORREÇÃO: Usar btnSave como botão normal, não submit
-    elementos.btnSave.addEventListener('click', async () => {
-      if (!currentUser) { 
-        alert('Faça login para continuar'); 
-        return; 
-      }
-
-      // Validar campos obrigatórios
-      if (!elementos.numeroPatrimonio.value.trim()) {
-        alert('Preencha o número de patrimônio');
-        elementos.numeroPatrimonio.focus();
-        return;
-      }
-      
-      if (!elementos.equipamento.value.trim()) {
-        alert('Preencha o equipamento');
-        elementos.equipamento.focus();
-        return;
-      }
-      
-      if (!elementos.setor.value.trim()) {
-        alert('Preencha o setor');
-        elementos.setor.focus();
-        return;
-      }
-
-      const item = {
-        id: editingId || 'patrimonio_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-        numeroPatrimonio: elementos.numeroPatrimonio.value.trim(),
-        equipamento: elementos.equipamento.value.trim(),
-        setor: elementos.setor.value.trim(),
-        modelo: elementos.modelo.value.trim(),
-        configuracao: elementos.configuracao.value.trim(),
-        photos: [...tempPhotos],
-        history: [],
-        createdBy: currentUser,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      // Preservar histórico se edição
-      if (editingId) {
-        const existing = window.storage.get('patrimonio:' + editingId);
-        if (existing && existing.value) {
-          try {
-            const parsed = JSON.parse(existing.value);
-            item.history = parsed.history || [];
-            item.createdBy = parsed.createdBy || currentUser;
-            item.createdAt = parsed.createdAt || new Date().toISOString();
-          } catch(e){}
         }
+        
+        // Salvar item
+        storage.saveItem(item);
+        
+        // Feedback visual
+        document.getElementById('uploadStatus').textContent = '✅ Item salvo!';
+        
+        // Resetar formulário
+        resetForm();
+        
+        // Recarregar dados
+        loadData();
+        
+        // Mostrar item salvo
+        viewItem(item.id);
+        
+        // Auto-backup após salvar
+        setTimeout(() => {
+          if (storage.getItems().length % 5 === 0) { // A cada 5 itens
+            autoBackup();
+          }
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Erro ao salvar:', error);
+        alert('Erro ao salvar item');
       }
-
-      // Salvar no localStorage
-      window.storage.set('patrimonio:' + item.id, JSON.stringify(item));
-      
-      // Resetar formulário
-      editingId = null;
-      elementos.numeroPatrimonio.value = '';
-      elementos.equipamento.value = '';
-      elementos.setor.value = '';
-      elementos.modelo.value = '';
-      elementos.configuracao.value = '';
-      tempPhotos = [];
-      renderPhotoPreview();
-      renderFormDefault();
-      
-      // Recarregar dados e mostrar item
-      loadData();
-      viewItem(item.id);
-      
-      // Feedback visual
-      elementos.uploadStatus.textContent = '✅ Item salvo!';
-      setTimeout(() => elementos.uploadStatus.textContent = 'Nenhuma foto', 3000);
     });
 
-    elementos.btnCancel.addEventListener('click', () => {
-      resetForm();
-    });
-
-    elementos.btnNew.addEventListener('click', () => {
-      resetForm();
-      elementos.numeroPatrimonio.focus();
-    });
+    document.getElementById('btnCancel').addEventListener('click', resetForm);
+    document.getElementById('btnNew').addEventListener('click', resetForm);
 
     function resetForm() {
-      elementos.numeroPatrimonio.value = '';
-      elementos.equipamento.value = '';
-      elementos.setor.value = '';
-      elementos.modelo.value = '';
-      elementos.configuracao.value = '';
+      document.getElementById('formTitle').textContent = '➕ Adicionar item';
+      document.getElementById('numeroPatrimonio').value = '';
+      document.getElementById('equipamento').value = '';
+      document.getElementById('setor').value = '';
+      document.getElementById('modelo').value = '';
+      document.getElementById('configuracao').value = '';
       editingId = null;
       tempPhotos = [];
       renderPhotoPreview();
-      renderFormDefault();
+      document.getElementById('uploadStatus').textContent = 'Nenhuma foto';
     }
 
-    function renderFormDefault() {
-      document.getElementById('formTitle').textContent = '➕ Adicionar item';
-    }
-
-    /* ================= CARREGAR DADOS ================= */
-    async function loadData() {
-      const result = window.storage.list('patrimonio:');
-      const keys = result.keys || [];
-      elementos.patrimonioTable.innerHTML = '';
-      elementos.totalCount.textContent = keys.length;
+    /* ================= CARREGAR E EXIBIR DADOS ================= */
+    function loadData() {
+      const items = storage.getItems();
+      const table = document.getElementById('patrimonioTable');
+      const totalCount = document.getElementById('totalCount');
       
-      if (keys.length === 0) {
-        elementos.patrimonioTable.innerHTML = '<tr><td colspan="5" class="small muted">Nenhum item cadastrado</td></tr>';
-        atualizarEstatisticasUI();
+      table.innerHTML = '';
+      totalCount.textContent = items.length;
+      
+      if (items.length === 0) {
+        table.innerHTML = '<tr><td colspan="5" class="small muted">Nenhum item cadastrado</td></tr>';
+        updateStats();
         return;
       }
       
-      // Ordenar por número de patrimônio
-      const items = [];
-      for (const key of keys) {
-        try {
-          const res = window.storage.get(key);
-          if (!res || !res.value) continue;
-          const item = JSON.parse(res.value);
-          items.push(item);
-        } catch (err) {
-          console.error('Erro item:', err);
-        }
-      }
+      // Ordenar por data (mais recente primeiro)
+      items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       
-      items.sort((a, b) => {
-        const numA = a.numeroPatrimonio || '';
-        const numB = b.numeroPatrimonio || '';
-        return numA.localeCompare(numB, undefined, {numeric: true, sensitivity: 'base'});
+      items.forEach(item => {
+        const row = document.createElement('tr');
+        
+        row.innerHTML = `
+          <td><strong>${escapeHtml(item.numeroPatrimonio)}</strong></td>
+          <td>${escapeHtml(item.equipamento)}</td>
+          <td>${escapeHtml(item.setor)}</td>
+          <td>${item.photos ? item.photos.length + ' 📷' : '0'}</td>
+          <td class="actions">
+            <button class="btn btn-view" data-id="${item.id}" title="Visualizar">👁️ Ver</button>
+            <button class="btn btn-edit" data-id="${item.id}" title="Editar">✏️ Editar</button>
+            <button class="btn" data-id="${item.id}" title="Histórico">📜 Hist</button>
+            <button class="btn btn-del" data-id="${item.id}" title="Excluir">🗑️ Excluir</button>
+          </td>
+        `;
+        
+        table.appendChild(row);
       });
       
-      // Renderizar tabela
-      items.forEach(item => {
-        const tr = document.createElement('tr');
-
-        const tdNum = document.createElement('td'); 
-        tdNum.textContent = item.numeroPatrimonio || '-';
-        
-        const tdEquip = document.createElement('td'); 
-        tdEquip.textContent = item.equipamento || '-';
-        
-        const tdSetor = document.createElement('td'); 
-        tdSetor.textContent = item.setor || '-';
-        
-        const tdPhotos = document.createElement('td'); 
-        tdPhotos.textContent = (item.photos && item.photos.length) ? 
-          `${item.photos.length} 📷` : '0';
-        
-        const tdActions = document.createElement('td');
-        tdActions.className = 'actions';
-
-        const btnView = document.createElement('button'); 
-        btnView.className = 'btn btn-view'; 
-        btnView.textContent = '👁️ Ver';
-        btnView.addEventListener('click', () => viewItem(item.id));
-        
-        const btnEdit = document.createElement('button'); 
-        btnEdit.className = 'btn btn-edit'; 
-        btnEdit.textContent = '✏️ Editar';
-        btnEdit.addEventListener('click', () => editItem(item.id));
-        
-        const btnHistory = document.createElement('button'); 
-        btnHistory.className = 'btn'; 
-        btnHistory.textContent = '📜 Hist';
-        btnHistory.addEventListener('click', () => openHistory(item.id));
-        
-        const btnDel = document.createElement('button'); 
-        btnDel.className = 'btn btn-del'; 
-        btnDel.textContent = '🗑️ Excluir';
-        btnDel.addEventListener('click', () => {
-          if (confirm(`Excluir "${item.equipamento}" (${item.numeroPatrimonio})?`)) {
-            window.storage.delete('patrimonio:' + item.id);
+      // Adicionar event listeners para os botões
+      table.querySelectorAll('.btn-view').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = this.getAttribute('data-id');
+          viewItem(id);
+        });
+      });
+      
+      table.querySelectorAll('.btn-edit').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = this.getAttribute('data-id');
+          editItem(id);
+        });
+      });
+      
+      table.querySelectorAll('.btn:not(.btn-view):not(.btn-edit):not(.btn-del)').forEach(btn => {
+        if (!btn.classList.contains('btn-del')) {
+          btn.addEventListener('click', function() {
+            const id = this.getAttribute('data-id');
+            openHistory(id);
+          });
+        }
+      });
+      
+      table.querySelectorAll('.btn-del').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = this.getAttribute('data-id');
+          const item = storage.getItem(id);
+          if (item && confirm(`Excluir "${item.equipamento}" (${item.numeroPatrimonio})?`)) {
+            storage.deleteItem(id);
             loadData();
-            elementos.viewBox.innerHTML = '<div class="small muted">Item removido</div>';
-            atualizarEstatisticasUI();
+            document.getElementById('viewBox').innerHTML = '<div class="small muted">Item excluído</div>';
+            updateStats();
           }
         });
-
-        tdActions.appendChild(btnView);
-        tdActions.appendChild(btnEdit);
-        tdActions.appendChild(btnHistory);
-        tdActions.appendChild(btnDel);
-
-        tr.appendChild(tdNum);
-        tr.appendChild(tdEquip);
-        tr.appendChild(tdSetor);
-        tr.appendChild(tdPhotos);
-        tr.appendChild(tdActions);
-
-        elementos.patrimonioTable.appendChild(tr);
       });
       
-      atualizarEstatisticasUI();
+      updateStats();
     }
 
     function editItem(id) {
-      const res = window.storage.get('patrimonio:' + id);
-      if (!res || !res.value) return alert('Item não encontrado');
-      const item = JSON.parse(res.value);
-      editingId = id;
-      elementos.numeroPatrimonio.value = item.numeroPatrimonio || '';
-      elementos.equipamento.value = item.equipamento || '';
-      elementos.setor.value = item.setor || '';
-      elementos.modelo.value = item.modelo || '';
-      elementos.configuracao.value = item.configuracao || '';
-      tempPhotos = (item.photos && item.photos.slice()) || [];
-      renderPhotoPreview();
-      document.getElementById('formTitle').textContent = '✏️ Editar item';
-      elementos.formArea.classList.remove('hide');
-      window.scrollTo({top:0,behavior:'smooth'});
-    }
-
-    function viewItem(id) {
-      try {
-        const res = window.storage.get('patrimonio:' + id);
-        if (!res || !res.value) { 
-          elementos.viewBox.innerHTML = '<div class="small muted">Item não encontrado</div>'; 
-          return; 
-        }
-        
-        const item = JSON.parse(res.value);
-        let html = `<div style="display:flex;gap:14px;align-items:flex-start">
-                      <div style="flex:1">
-                        <p><strong>Nº Patrimônio:</strong> ${escapeHtml(item.numeroPatrimonio)}</p>
-                        <p><strong>Equipamento:</strong> ${escapeHtml(item.equipamento)}</p>
-                        <p><strong>Setor:</strong> ${escapeHtml(item.setor)}</p>
-                        <p><strong>Modelo:</strong> ${escapeHtml(item.modelo || '-')}</p>
-                        <p><strong>Configuração:</strong> ${escapeHtml(item.configuracao || '-')}</p>
-                        <p class="small muted">Cadastrado por: ${escapeHtml(item.createdBy || 'admin')} em ${formatDate(item.createdAt)}</p>
-                      </div>
-                      <div style="width:260px">
-                        <strong>Fotos (${item.photos?.length || 0})</strong>
-                        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">`;
-        
-        if (item.photos && item.photos.length) {
-          item.photos.forEach(url => {
-            html += `<a href="${url}" target="_blank" style="display:block;width:80px;height:60px;border-radius:6px;overflow:hidden">
-                      <img src="${url}" style="width:100%;height:100%;object-fit:cover" loading="lazy">
-                    </a>`;
-          });
-        } else {
-          html += `<div class="small muted">Sem fotos</div>`;
-        }
-        
-        html += `</div></div></div>`;
-        elementos.viewBox.innerHTML = html;
-      } catch (err) {
-        console.error(err);
-        elementos.viewBox.innerHTML = '<div class="small muted">Erro ao abrir item</div>';
-      }
-    }
-
-    /* ================= FUNÇÕES DE BACKUP ================= */
-    async function salvarBackupNaNuvem() {
-      if (!currentUser) {
-        alert('Faça login primeiro');
+      const item = storage.getItem(id);
+      if (!item) {
+        alert('Item não encontrado');
         return;
       }
       
-      elementos.syncStatus.classList.remove('hide');
-      elementos.syncStatus.textContent = '🔄 Criando backup...';
+      editingId = id;
+      document.getElementById('formTitle').textContent = '✏️ Editar item';
+      document.getElementById('numeroPatrimonio').value = item.numeroPatrimonio || '';
+      document.getElementById('equipamento').value = item.equipamento || '';
+      document.getElementById('setor').value = item.setor || '';
+      document.getElementById('modelo').value = item.modelo || '';
+      document.getElementById('configuracao').value = item.configuracao || '';
+      tempPhotos = item.photos ? [...item.photos] : [];
+      renderPhotoPreview();
       
+      // Scroll para o formulário
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function viewItem(id) {
+      const item = storage.getItem(id);
+      if (!item) {
+        document.getElementById('viewBox').innerHTML = '<div class="small muted">Item não encontrado</div>';
+        return;
+      }
+      
+      let html = `
+        <div style="display:flex;gap:20px;align-items:flex-start">
+          <div style="flex:1">
+            <h4 style="margin-top:0;color:var(--primary)">${escapeHtml(item.equipamento)}</h4>
+            <p><strong>Nº Patrimônio:</strong> ${escapeHtml(item.numeroPatrimonio)}</p>
+            <p><strong>Setor:</strong> ${escapeHtml(item.setor)}</p>
+            <p><strong>Modelo:</strong> ${escapeHtml(item.modelo || 'Não informado')}</p>
+            <p><strong>Configuração:</strong> ${escapeHtml(item.configuracao || 'Não informada')}</p>
+            <p class="small muted">Cadastrado por ${escapeHtml(item.createdBy || 'admin')} em ${formatDate(item.createdAt)}</p>
+          </div>
+          <div style="width:280px">
+            <strong>Fotos (${item.photos ? item.photos.length : 0})</strong>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+      `;
+      
+      if (item.photos && item.photos.length > 0) {
+        item.photos.forEach((url, index) => {
+          html += `
+            <a href="${url}" target="_blank" style="display:block;width:80px;height:60px;border-radius:6px;overflow:hidden;position:relative">
+              <img src="${url}" style="width:100%;height:100%;object-fit:cover">
+              <div style="position:absolute;bottom:0;right:0;background:rgba(0,0,0,0.7);color:white;font-size:10px;padding:1px 4px">${index + 1}</div>
+            </a>
+          `;
+        });
+      } else {
+        html += '<div class="small muted">Sem fotos</div>';
+      }
+      
+      html += `
+            </div>
+          </div>
+        </div>
+        
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #eee">
+          <h5>📝 Histórico de Manutenções</h5>
+      `;
+      
+      if (item.history && item.history.length > 0) {
+        html += '<ul style="margin-top:8px">';
+        item.history.slice(0, 5).forEach(entry => {
+          html += `<li class="small">${formatDate(entry.date)} - ${escapeHtml(entry.description)}</li>`;
+        });
+        html += '</ul>';
+        if (item.history.length > 5) {
+          html += `<p class="small muted">+ ${item.history.length - 5} manutenções anteriores</p>`;
+        }
+      } else {
+        html += '<div class="small muted">Nenhuma manutenção registrada</div>';
+      }
+      
+      html += `</div>`;
+      
+      document.getElementById('viewBox').innerHTML = html;
+    }
+
+    /* ================= HISTÓRICO DE MANUTENÇÃO ================= */
+    function openHistory(id) {
+      const item = storage.getItem(id);
+      if (!item) {
+        alert('Item não encontrado');
+        return;
+      }
+      
+      currentHistoryItemId = id;
+      document.getElementById('historyItemTitle').textContent = 
+        `${item.equipamento} (${item.numeroPatrimonio}) - ${item.setor}`;
+      
+      // Carregar histórico
+      const historyContent = document.getElementById('historyContent');
+      historyContent.innerHTML = '';
+      
+      if (item.history && item.history.length > 0) {
+        // Ordenar por data (mais recente primeiro)
+        const sortedHistory = [...item.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        sortedHistory.forEach((entry, index) => {
+          const div = document.createElement('div');
+          div.style.cssText = `
+            border-left: 4px solid var(--primary);
+            padding: 12px;
+            margin-bottom: 12px;
+            background: #f8f9fa;
+            border-radius: 0 8px 8px 0;
+          `;
+          div.innerHTML = `
+            <strong>${formatDate(entry.date)}</strong>
+            <div class="small" style="margin-top:4px">${escapeHtml(entry.description)}</div>
+            <div class="small muted" style="margin-top:4px">
+              ${entry.addedBy ? `Registrado por: ${entry.addedBy}` : ''}
+            </div>
+          `;
+          historyContent.appendChild(div);
+        });
+      } else {
+        historyContent.innerHTML = '<div class="small muted" style="text-align:center;padding:20px">Nenhuma manutenção registrada</div>';
+      }
+      
+      // Configurar data atual
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('maintenanceDate').value = today;
+      document.getElementById('maintenanceDescription').value = '';
+      
+      // Mostrar modal
+      document.getElementById('modalHistory').classList.remove('hide');
+    }
+
+    document.getElementById('closeHistory').addEventListener('click', function() {
+      document.getElementById('modalHistory').classList.add('hide');
+      currentHistoryItemId = null;
+    });
+
+    document.getElementById('clearHistoryForm').addEventListener('click', function() {
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('maintenanceDate').value = today;
+      document.getElementById('maintenanceDescription').value = '';
+    });
+
+    document.getElementById('maintenanceForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      
+      if (!currentHistoryItemId) {
+        alert('Nenhum item selecionado');
+        return;
+      }
+      
+      const date = document.getElementById('maintenanceDate').value;
+      const description = document.getElementById('maintenanceDescription').value.trim();
+      
+      if (!date) {
+        alert('Preencha a data');
+        return;
+      }
+      
+      if (!description) {
+        alert('Preencha a descrição');
+        return;
+      }
+      
+      // Obter item atual
+      const item = storage.getItem(currentHistoryItemId);
+      if (!item) {
+        alert('Item não encontrado');
+        return;
+      }
+      
+      // Adicionar manutenção
+      if (!item.history) {
+        item.history = [];
+      }
+      
+      item.history.unshift({
+        date: date,
+        description: description,
+        addedBy: currentUser,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Atualizar item
+      item.updatedAt = new Date().toISOString();
+      storage.saveItem(item);
+      
+      // Feedback
+      alert('✅ Manutenção registrada com sucesso!');
+      
+      // Recarregar histórico
+      openHistory(currentHistoryItemId);
+      
+      // Recarregar dados
+      loadData();
+    });
+
+    /* ================= SINCRONIZAÇÃO CLOUDINARY ================= */
+    async function uploadBackupToCloudinary(backupData) {
       try {
-        const result = window.storage.list('patrimonio:');
-        const keys = result.keys || [];
-        const todosItens = [];
+        // Converter para JSON
+        const jsonStr = JSON.stringify(backupData, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
         
-        for (const key of keys) {
-          const res = window.storage.get(key);
-          if (res && res.value) {
-            todosItens.push(JSON.parse(res.value));
-          }
+        // Preparar form data
+        const formData = new FormData();
+        formData.append('file', blob, `backup_patrimonio_${Date.now()}.json`);
+        formData.append('upload_preset', UPLOAD_PRESET_BACKUP);
+        
+        // Fazer upload
+        const response = await fetch(CLOUDINARY_URL, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.secure_url) {
+          // Salvar URL do último backup
+          localStorage.setItem('last_backup_url', data.secure_url);
+          localStorage.setItem('last_backup_time', new Date().toISOString());
+          localStorage.setItem('last_backup_count', backupData.items.length.toString());
+          
+          return {
+            success: true,
+            url: data.secure_url,
+            itemCount: backupData.items.length,
+            photoCount: backupData.totalPhotos
+          };
+        } else {
+          throw new Error(data.error?.message || 'Upload falhou');
         }
         
-        if (todosItens.length === 0) {
-          elementos.syncStatus.textContent = '⚠ Nenhum item para backup';
-          setTimeout(() => elementos.syncStatus.classList.add('hide'), 3000);
-          return;
+      } catch (error) {
+        console.error('Erro backup:', error);
+        return {
+          success: false,
+          error: error.message
+        };
+      }
+    }
+
+    async function downloadBackupFromCloudinary(url) {
+      try {
+        // Baixar backup
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        const backupData = {
-          app: 'Sistema Patrimônio',
-          timestamp: new Date().toISOString(),
-          usuario: currentUser,
-          totalItens: todosItens.length,
-          totalFotos: todosItens.reduce((total, item) => total + (item.photos?.length || 0), 0),
-          itens: todosItens
+        const backupData = await response.json();
+        
+        // Validar estrutura
+        if (!backupData.items || !Array.isArray(backupData.items)) {
+          throw new Error('Formato de backup inválido');
+        }
+        
+        return {
+          success: true,
+          data: backupData
         };
         
-        const jsonString = JSON.stringify(backupData, null, 2);
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        
-        elementos.syncStatus.textContent = '🔄 Enviando para Cloudinary...';
-        lastBackupUrl = await uploadParaCloudinary(blob, 'backup');
-        
-        localStorage.setItem('ultimo_backup_url', lastBackupUrl);
-        localStorage.setItem('ultimo_backup_data', new Date().toISOString());
-        localStorage.setItem('ultimo_backup_itens', todosItens.length.toString());
-        
-        elementos.syncStatus.textContent = `✅ Backup criado! ${todosItens.length} itens`;
-        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
-        
-        mostrarModalSync(`
-          <div style="color: #28a745;">
-            <h4>✅ Backup concluído!</h4>
-            <p><strong>${todosItens.length}</strong> itens salvos</p>
-            <p><strong>${new Date().toLocaleString('pt-BR')}</strong></p>
-          </div>
-        `);
-        
-        return lastBackupUrl;
-        
-      } catch (erro) {
-        console.error('❌ Erro no backup:', erro);
-        elementos.syncStatus.textContent = '❌ Erro no backup';
-        
-        mostrarModalSync(`
-          <div style="color: #dc3545;">
-            <h4>❌ Erro no backup</h4>
-            <p>${erro.message}</p>
-          </div>
-        `);
-        
-        setTimeout(() => elementos.syncStatus.classList.add('hide'), 5000);
-        return null;
+      } catch (error) {
+        console.error('Erro download:', error);
+        return {
+          success: false,
+          error: error.message
+        };
       }
     }
 
-    function mostrarModalSync(conteudo) {
-      elementos.syncInfo.innerHTML = conteudo;
-      elementos.modalSync.classList.remove('hide');
-    }
-
-    function atualizarEstatisticasUI() {
-      const result = window.storage.list('patrimonio:');
-      const keys = result.keys || [];
-      let totalFotos = 0;
-      let totalItens = keys.length;
+    async function createBackup() {
+      const items = storage.getItems();
       
-      for (const key of keys) {
-        const res = window.storage.get(key);
-        if (res && res.value) {
-          const item = JSON.parse(res.value);
-          totalFotos += (item.photos?.length || 0);
+      if (items.length === 0) {
+        showSyncInfo('⚠ Nenhum item para fazer backup', 'warning');
+        return;
+      }
+      
+      showSyncInfo('🔄 Criando backup...', 'info');
+      
+      const backupData = {
+        app: 'Sistema de Patrimônio',
+        version: '2.0',
+        timestamp: new Date().toISOString(),
+        user: currentUser,
+        totalItems: items.length,
+        totalPhotos: items.reduce((sum, item) => sum + (item.photos?.length || 0), 0),
+        items: items
+      };
+      
+      const result = await uploadBackupToCloudinary(backupData);
+      
+      if (result.success) {
+        showSyncInfo(`
+          ✅ <strong>Backup criado com sucesso!</strong><br>
+          📦 ${result.itemCount} itens salvos<br>
+          📷 ${result.photoCount} fotos incluídas<br>
+          ⏰ ${new Date().toLocaleString('pt-BR')}<br><br>
+          <small>URL do backup:<br>
+          <a href="${result.url}" target="_blank" style="word-break:break-all">${result.url.substring(0, 80)}...</a></small>
+        `, 'success');
+        
+        // Copiar URL automaticamente
+        try {
+          await navigator.clipboard.writeText(result.url);
+          showSyncInfo(`
+            ✅ <strong>Backup criado com sucesso!</strong><br>
+            📋 URL copiada para a área de transferência!<br>
+            📦 ${result.itemCount} itens<br>
+            ⏰ ${new Date().toLocaleString('pt-BR')}
+          `, 'success');
+        } catch (e) {
+          // Ignorar erro de clipboard
         }
+        
+      } else {
+        showSyncInfo(`❌ <strong>Erro no backup:</strong><br>${result.error}`, 'error');
+      }
+    }
+
+    async function restoreBackup(url) {
+      if (!url) {
+        showSyncInfo('❌ Informe a URL do backup', 'error');
+        return;
       }
       
-      elementos.totalCount.textContent = totalItens;
-      elementos.totalFotos.textContent = `${totalFotos} fotos`;
+      showSyncInfo('🔄 Baixando backup...', 'info');
       
-      const ultimoBackup = localStorage.getItem('ultimo_backup_data');
-      if (ultimoBackup) {
-        const dataFormatada = new Date(ultimoBackup).toLocaleString('pt-BR', {
+      const result = await downloadBackupFromCloudinary(url);
+      
+      if (!result.success) {
+        showSyncInfo(`❌ <strong>Erro ao baixar:</strong><br>${result.error}`, 'error');
+        return;
+      }
+      
+      const backupData = result.data;
+      
+      // Confirmar restauração
+      if (!confirm(`Restaurar backup com ${backupData.items.length} itens?\n\nData: ${new Date(backupData.timestamp).toLocaleString('pt-BR')}\n\nIsso substituirá todos os dados atuais.`)) {
+        showSyncInfo('❌ Restauração cancelada', 'warning');
+        return;
+      }
+      
+      // Limpar dados atuais
+      storage.clearAll();
+      
+      // Restaurar dados
+      storage.importItems(backupData.items);
+      
+      // Recarregar interface
+      loadData();
+      
+      showSyncInfo(`
+        ✅ <strong>Backup restaurado!</strong><br>
+        📦 ${backupData.items.length} itens restaurados<br>
+        📷 ${backupData.totalPhotos || 0} fotos recuperadas<br>
+        👤 Backup original: ${backupData.user || 'Desconhecido'}<br>
+        ⏰ ${new Date(backupData.timestamp).toLocaleString('pt-BR')}
+      `, 'success');
+      
+      // Fechar modal após 5 segundos
+      setTimeout(() => {
+        document.getElementById('modalSync').classList.add('hide');
+      }, 5000);
+    }
+
+    async function autoBackup() {
+      const items = storage.getItems();
+      if (items.length === 0) return;
+      
+      try {
+        const backupData = {
+          app: 'Sistema de Patrimônio',
+          timestamp: new Date().toISOString(),
+          user: currentUser,
+          totalItems: items.length,
+          items: items
+        };
+        
+        const result = await uploadBackupToCloudinary(backupData);
+        if (result.success) {
+          console.log('✅ Backup automático realizado:', result.itemCount, 'itens');
+        }
+      } catch (error) {
+        console.error('❌ Erro backup automático:', error);
+      }
+    }
+
+    /* ================= INTERFACE DE SINCRONIZAÇÃO ================= */
+    document.getElementById('btnSyncUp').addEventListener('click', function() {
+      document.getElementById('modalSync').classList.remove('hide');
+      showSyncInfo('Clique no botão abaixo para criar um backup', 'info');
+    });
+
+    document.getElementById('btnDoBackup').addEventListener('click', createBackup);
+
+    document.getElementById('btnDoRestore').addEventListener('click', function() {
+      const url = document.getElementById('backupUrlInput').value.trim();
+      restoreBackup(url);
+    });
+
+    document.getElementById('closeSync').addEventListener('click', function() {
+      document.getElementById('modalSync').classList.add('hide');
+    });
+
+    function showSyncInfo(message, type = 'info') {
+      const syncInfo = document.getElementById('syncInfo');
+      const colors = {
+        info: '#17a2b8',
+        success: '#28a745',
+        error: '#dc3545',
+        warning: '#ffc107'
+      };
+      
+      syncInfo.innerHTML = message;
+      syncInfo.style.borderLeft = `4px solid ${colors[type] || colors.info}`;
+      syncInfo.style.background = type === 'success' ? '#d4edda' : 
+                                 type === 'error' ? '#f8d7da' : 
+                                 type === 'warning' ? '#fff3cd' : '#d1ecf1';
+      syncInfo.style.color = type === 'success' ? '#155724' : 
+                            type === 'error' ? '#721c24' : 
+                            type === 'warning' ? '#856404' : '#0c5460';
+    }
+
+    /* ================= FUNÇÕES AUXILIARES ================= */
+    function setupEventListeners() {
+      // Fechar modais ao clicar fora
+      document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+          if (e.target === this) {
+            this.classList.add('hide');
+          }
+        });
+      });
+      
+      // Fechar modais com ESC
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+          document.querySelectorAll('.modal').forEach(modal => {
+            if (!modal.classList.contains('hide')) {
+              modal.classList.add('hide');
+            }
+          });
+        }
+      });
+    }
+
+    function updateStats() {
+      const items = storage.getItems();
+      const totalFotos = items.reduce((sum, item) => sum + (item.photos?.length || 0), 0);
+      
+      document.getElementById('totalCount').textContent = items.length;
+      document.getElementById('totalFotos').textContent = `${totalFotos} fotos`;
+      
+      // Atualizar status de sincronização
+      const lastBackupTime = localStorage.getItem('last_backup_time');
+      if (lastBackupTime) {
+        const timeStr = new Date(lastBackupTime).toLocaleString('pt-BR', {
           day: '2-digit',
           month: '2-digit',
           hour: '2-digit',
           minute: '2-digit'
         });
-        elementos.syncStatus.innerHTML = `📊 ${totalItens} itens | 📷 ${totalFotos} fotos | 🔄 ${dataFormatada}`;
-        elementos.syncStatus.classList.remove('hide');
+        document.getElementById('syncStatus').innerHTML = `📊 ${items.length} itens | 🔄 ${timeStr}`;
+        document.getElementById('syncStatus').classList.remove('hide');
+      } else if (items.length > 0) {
+        document.getElementById('syncStatus').innerHTML = `📊 ${items.length} itens | ⚠ Sem backup`;
+        document.getElementById('syncStatus').classList.remove('hide');
+      } else {
+        document.getElementById('syncStatus').classList.add('hide');
       }
     }
 
-    /* ================= EVENT LISTENERS ================= */
-    elementos.btnSyncUp.addEventListener('click', salvarBackupNaNuvem);
-    elementos.btnSyncDown.addEventListener('click', async () => {
-      alert('Função de restauração em desenvolvimento');
-    });
-    elementos.closeSync.addEventListener('click', () => elementos.modalSync.classList.add('hide'));
-    elementos.closeHistory.addEventListener('click', () => elementos.modalHistory.classList.add('hide'));
-
-    // Prevenir submit no formulário de manutenção
-    elementos.maintenanceForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      alert('Funcionalidade de histórico em desenvolvimento');
-    });
-
-    /* ================= UTILIDADES ================= */
     function formatDate(dateString) {
       try {
         const d = new Date(dateString);
         return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR').substring(0, 5);
-      } catch { 
-        return dateString; 
+      } catch {
+        return dateString;
       }
     }
 
-    function escapeHtml(str) {
-      if (!str && str !== 0) return '';
-      return String(str)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.toString()
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
     }
 
-    function openHistory(id) {
-      alert('Funcionalidade de histórico em desenvolvimento');
-    }
-
-    /* ================= INICIALIZAÇÃO ================= */
-    window.addEventListener('DOMContentLoaded', () => {
-      checkLoginStatus();
-      renderFormDefault();
-    });
-
+    /* ================= INICIALIZAÇÃO FINAL ================= */
     console.log('✅ Sistema Patrimônio carregado!');
+    console.log('📋 Itens no storage:', storage.getItems().length);
+    console.log('👤 Usuário atual:', currentUser);
   </script>
 </body>
 </html>
