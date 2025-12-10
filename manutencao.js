@@ -1,37 +1,25 @@
-// manutencao.js
-// Funções para adicionar e ler histórico de manutenção por produto
-(function(){
-  if (!window.db) {
-    console.error('manutencao.js: firebase não inicializado');
-    return;
-  }
+async function adicionarManutencao(productId, texto) {
+    await db.collection("manutencoes").add({
+        productId,
+        texto,
+        timestamp: Date.now()
+    });
+}
 
-  /**
-   * addMaintenance(productId, {dateISO, descricao, user})
-   * retorna entry salvo
-   */
-  window.addMaintenance = async function(productId, { dateISO, descricao, user }) {
-    if (!productId) throw new Error('productId necessário');
-    const colRef = window.db.collection('produtos').doc(productId).collection('manutencoes');
-    const entry = {
-      dateISO: dateISO || new Date().toISOString(),
-      descricao: descricao || '',
-      user: user || null,
-      createdAt: window.firebase.firestore.FieldValue.serverTimestamp()
-    };
-    const res = await colRef.add(entry);
-    return { id: res.id, ...entry };
-  };
+async function carregarManutencoes(productId) {
+    const snap = await db.collection("manutencoes")
+        .where("productId", "==", productId)
+        .orderBy("timestamp", "desc")
+        .get();
 
-  /**
-   * getMaintenance(productId) => array de entries ordenadas por createdAt desc
-   */
-  window.getMaintenance = async function(productId) {
-    if (!productId) throw new Error('productId necessário');
-    const colRef = window.db.collection('produtos').doc(productId).collection('manutencoes').orderBy('createdAt','desc');
-    const snap = await colRef.get();
-    const list = [];
-    snap.forEach(d => list.push({ id: d.id, ...d.data() }));
-    return list;
-  };
-})();
+    let html = "";
+    snap.forEach(doc => {
+        const m = doc.data();
+        html += `<p><b>${new Date(m.timestamp).toLocaleString()}</b><br>${m.texto}</p><hr>`;
+    });
+
+    return html;
+}
+
+window.adicionarManutencao = adicionarManutencao;
+window.carregarManutencoes = carregarManutencoes;
