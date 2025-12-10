@@ -1,25 +1,23 @@
-async function adicionarManutencao(productId, texto) {
-    await db.collection("manutencoes").add({
-        productId,
-        texto,
-        timestamp: Date.now()
-    });
-}
+// manutencao.js
+(function(){
+  if (!window.db) {
+    console.error('manutencao: Firestore não inicializado');
+    return;
+  }
 
-async function carregarManutencoes(productId) {
-    const snap = await db.collection("manutencoes")
-        .where("productId", "==", productId)
-        .orderBy("timestamp", "desc")
-        .get();
+  window.addMaintenance = async function(productId, { dateISO, descricao, user }) {
+    if (!productId) throw new Error('productId ausente');
+    const col = db.collection('produtos').doc(productId).collection('manutencoes');
+    const entry = { dateISO: dateISO || new Date().toISOString(), descricao: descricao || '', user: user || null, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+    const docRef = await col.add(entry);
+    return { id: docRef.id, ...entry };
+  };
 
-    let html = "";
-    snap.forEach(doc => {
-        const m = doc.data();
-        html += `<p><b>${new Date(m.timestamp).toLocaleString()}</b><br>${m.texto}</p><hr>`;
-    });
-
-    return html;
-}
-
-window.adicionarManutencao = adicionarManutencao;
-window.carregarManutencoes = carregarManutencoes;
+  window.getMaintenance = async function(productId) {
+    if (!productId) return [];
+    const snap = await db.collection('produtos').doc(productId).collection('manutencoes').orderBy('createdAt', 'desc').get();
+    const items = [];
+    snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+    return items;
+  };
+})();
