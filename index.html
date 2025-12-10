@@ -1,250 +1,176 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Patrimônio EETI — Dashboard</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Patrimônio - Dashboard</title>
 
-  <!-- Firebase compat (necessário para firebase.js) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; font-family:Arial, sans-serif; }
 
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+        body { display:flex; background:#f5f6fa; height:100vh; }
 
-  <style>
-    /* ====== Dashboard styling (clean, responsive) ====== */
-    :root{
-      --bg: #0f172a;
-      --card:#0b1220;
-      --accent:#6366f1;
-      --muted:#94a3b8;
-      --surface:#0b1220;
-      --white:#e6eef8;
-      --glass: rgba(255,255,255,0.04);
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:Inter,Segoe UI,Roboto,sans-serif;background:#071029;color:var(--white);min-height:100vh}
-    .layout{display:grid;grid-template-columns:260px 1fr;min-height:100vh}
-    .sidebar{background:linear-gradient(180deg,#07102a, #071f3a);padding:20px;border-right:1px solid rgba(255,255,255,0.03)}
-    .brand{display:flex;align-items:center;gap:12px;margin-bottom:24px}
-    .brand .logo{width:44px;height:44px;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:700}
-    .brand h1{font-size:16px}
-    nav ul{list-style:none;margin-top:8px}
-    nav a{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;color:var(--muted);text-decoration:none;margin-bottom:6px}
-    nav a.active, nav a:hover{background:var(--glass);color:var(--white)}
-    .topbar{display:flex;justify-content:space-between;align-items:center;padding:16px;background:linear-gradient(90deg, rgba(255,255,255,0.02), transparent)}
-    .content{padding:20px}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:16px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);color:var(--white);box-shadow:0 6px 18px rgba(2,6,23,0.6)}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px}
-    .flex{display:flex;gap:12px;align-items:center}
-    .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
-    .btn-ghost{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:8px}
-    input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--white)}
-    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-    table{width:100%;border-collapse:collapse;color:var(--white)}
-    th,td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.03);text-align:left;font-size:14px}
-    .photo-thumb{width:68px;height:48px;object-fit:cover;border-radius:6px;border:1px solid rgba(255,255,255,0.03)}
-    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);z-index:1000;visibility:hidden;opacity:0;transition:all .15s}
-    .modal.show{visibility:visible;opacity:1}
-    .modal .modal-body{width:100%;max-width:900px}
-    .small{color:var(--muted);font-size:13px}
-    @media(max-width:980px){.layout{grid-template-columns:1fr} .sidebar{display:none}}
-  </style>
+        /* SIDEBAR */
+        .sidebar {
+            width:240px; background:#1e1f26; color:#fff; padding:20px;
+            display:flex; flex-direction:column;
+        }
+        .sidebar h2 { margin-bottom:20px; }
+        .sidebar button {
+            background:none; border:none; color:#fff; padding:12px;
+            text-align:left; cursor:pointer; border-radius:6px;
+        }
+        .sidebar button:hover { background:#2b2c33; }
+
+        /* HEADER */
+        .header {
+            height:60px; background:#fff; display:flex;
+            justify-content:space-between; align-items:center;
+            padding:0 20px; border-bottom:1px solid #ddd;
+        }
+
+        /* CONTENT */
+        .content {
+            flex:1; display:flex; flex-direction:column;
+        }
+
+        /* TABLE */
+        table {
+            width:100%; border-collapse:collapse; margin-top:20px;
+        }
+        th,td {
+            padding:12px; border-bottom:1px solid #ddd;
+            text-align:left;
+        }
+        th { background:#eee; }
+
+        /* FORMS */
+        .card {
+            background:#fff; padding:20px; border-radius:8px;
+            box-shadow:0 0 10px rgba(0,0,0,0.1); margin-top:20px;
+        }
+
+        .hidden { display:none; }
+
+        /* MODAL CAMERA */
+        #cameraModal, #manutencaoModal {
+            position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.7); display:none;
+            justify-content:center; align-items:center;
+        }
+        .modal-content {
+            background:#fff; padding:20px; border-radius:8px;
+            width:400px; text-align:center;
+        }
+        video, canvas { width:100%; border-radius:8px; margin-bottom:10px; }
+
+        /* LOGIN */
+        #loginArea {
+            margin:auto; width:300px; background:#fff; padding:20px;
+            border-radius:8px; box-shadow:0 0 10px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body>
-  <div class="layout">
-    <!-- SIDEBAR -->
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="logo"><i class="fas fa-boxes"></i></div>
-        <div>
-          <div style="font-weight:700">Patrimônio EETI</div>
-          <div class="small">Dashboard administrativo</div>
-        </div>
-      </div>
 
-      <nav>
-        <ul>
-          <li><a href="#" id="navProducts" class="active"><i class="fas fa-list"></i> Produtos</a></li>
-          <li><a href="#" id="navEmpty"><i class="fas fa-cog"></i> Configurações</a></li>
-        </ul>
-      </nav>
-
-      <div style="margin-top:20px">
-        <div class="small" id="sidebarUser">Não logado</div>
-        <div style="margin-top:8px">
-          <button id="btnOpenLogin" class="btn-ghost">Entrar</button>
-          <button id="btnLogout" class="btn hide">Sair</button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- MAIN -->
-    <main>
-      <div class="topbar">
-        <div class="flex">
-          <h2 id="pageTitle">Produtos</h2>
-        </div>
-        <div class="flex">
-          <div class="small" id="onlineStatus">Conexão: —</div>
-        </div>
-      </div>
-
-      <div class="content">
-        <!-- Stats -->
-        <div class="grid">
-          <div class="card">
-            <div class="small">Itens cadastrados</div>
-            <div style="font-size:22px;font-weight:700" id="statProducts">0</div>
-          </div>
-          <div class="card">
-            <div class="small">Fotos</div>
-            <div style="font-size:22px;font-weight:700" id="statPhotos">0</div>
-          </div>
-          <div class="card">
-            <div class="small">Usuário</div>
-            <div style="font-size:18px" id="statUser">—</div>
-          </div>
-        </div>
-
-        <!-- Products table -->
-        <div class="card" style="margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <h3 style="margin:0">Produtos</h3>
-              <div class="small" id="productCount">0 produtos</div>
-            </div>
-            <div class="flex">
-              <button id="btnNewProduct" class="btn"><i class="fas fa-plus"></i> Novo produto</button>
-            </div>
-          </div>
-
-          <div style="margin-top:12px">
-            <table>
-              <thead>
-                <tr><th>Nº Patrimônio</th><th>Equipamento</th><th>Setor</th><th>Fotos</th><th>Ações</th></tr>
-              </thead>
-              <tbody id="productTable">
-                <tr><td colspan="5" class="small">Faça login para ver produtos</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Product form (modal style) -->
-        <div id="productFormModal" class="modal">
-          <div class="card modal-body">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <h3 id="formTitle">Novo Produto</h3>
-              <div>
-                <button id="closeProductForm" class="btn-ghost">Fechar</button>
-              </div>
-            </div>
-
-            <div style="margin-top:12px;display:grid;gap:8px">
-              <div>
-                <label>Nº Patrimônio *</label>
-                <input id="numeroInput" />
-              </div>
-              <div>
-                <label>Equipamento *</label>
-                <input id="equipamentoInput" />
-              </div>
-              <div>
-                <label>Setor</label>
-                <input id="setorInput" />
-              </div>
-              <div>
-                <label>Configuração</label>
-                <textarea id="configInput" rows="3"></textarea>
-              </div>
-
-              <div style="display:flex;gap:8px;align-items:center">
-                <button id="openCameraBtn" class="btn"><i class="fas fa-camera"></i> Abrir câmera</button>
-                <input id="fileInput" type="file" accept="image/*" multiple class="hide" />
-                <button id="selectFilesBtn" class="btn-ghost">Selecionar arquivos</button>
-                <div style="flex:1"></div>
-                <button id="saveProductBtn" class="btn">Salvar</button>
-              </div>
-
-              <div id="stagedPreview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Product detail card -->
-        <div id="productDetailCard" class="card hide">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <h3 id="detailName">Detalhes</h3>
-              <div class="small" id="detailSubtitle"></div>
-            </div>
-            <div class="flex">
-              <button id="btnAddPhotoToProduct" class="btn"><i class="fas fa-camera"></i> Adicionar foto</button>
-              <button id="btnOpenMaintModal" class="btn-ghost">Nova manutenção</button>
-            </div>
-          </div>
-
-          <div style="margin-top:12px">
-            <h4>Fotos</h4>
-            <div id="detailPhotos" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-
-            <h4 style="margin-top:12px">Histórico de manutenção</h4>
-            <div id="maintList" class="small">Nenhuma manutenção</div>
-          </div>
-        </div>
-
-      </div>
-    </main>
-  </div>
-
-  <!-- Camera modal -->
-  <div id="cameraModal" class="modal">
-    <div class="card modal-body">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3>Câmera</h3>
-        <div>
-          <button id="captureBtn" class="btn">Capturar</button>
-          <button id="closeCameraBtn" class="btn-ghost">Fechar</button>
-        </div>
-      </div>
-      <div style="margin-top:12px">
-        <video id="cameraVideo" autoplay playsinline style="width:100%;background:#000;border-radius:8px"></video>
-      </div>
+    <div id="loginArea" class="">
+        <h2>Login</h2><br>
+        <input id="emailLogin" type="email" placeholder="E-mail" style="width:100%;padding:10px;"><br><br>
+        <input id="senhaLogin" type="password" placeholder="Senha" style="width:100%;padding:10px;"><br><br>
+        <button onclick="login()" style="width:100%;padding:10px;">Entrar</button>
     </div>
-  </div>
 
-  <!-- Maintenance modal -->
-  <div id="maintModal" class="modal">
-    <div class="card modal-body">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <h3>Nova manutenção</h3>
-        <button id="closeMaintBtn" class="btn-ghost">Fechar</button>
-      </div>
-      <div style="margin-top:12px;display:grid;gap:8px">
-        <div>
-          <label>Data</label>
-          <input id="maintDate" type="date" />
+    <div id="dashboard" class="hidden" style="width:100%;">
+
+        <div class="sidebar">
+            <h2>Sistema</h2>
+            <button onclick="mostrarLista()">Lista de Produtos</button>
+            <button onclick="mostrarCadastro()">Cadastrar Produto</button>
+            <button onclick="logout()">Sair</button>
         </div>
-        <div>
-          <label>Descrição</label>
-          <textarea id="maintDesc" rows="3"></textarea>
+
+        <div class="content">
+            <div class="header">
+                <h2 id="tituloTopo">Painel</h2>
+            </div>
+
+            <!-- LISTA -->
+            <div id="listaArea" class="card">
+                <h3>Produtos cadastrados</h3>
+                <table id="tabelaProdutos">
+                    <thead>
+                        <tr>
+                            <th>N Patrimônio</th>
+                            <th>Equipamento</th>
+                            <th>Setor</th>
+                            <th>Foto</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- CADASTRO -->
+            <div id="cadastroArea" class="card hidden">
+                <h3>Novo Produto</h3><br>
+                <input id="patrimonio" placeholder="Nº Patrimônio" style="width:100%;padding:10px;"><br><br>
+                <input id="equipamento" placeholder="Equipamento" style="width:100%;padding:10px;"><br><br>
+                <input id="setor" placeholder="Setor" style="width:100%;padding:10px;"><br><br>
+
+                <button onclick="openCameraModal()">Tirar Foto</button>
+                <div id="previewFotos"></div>
+
+                <br>
+                <button onclick="salvarProduto()">Salvar</button>
+            </div>
+
+            <!-- DETALHES -->
+            <div id="detalhesArea" class="card hidden">
+                <h3 id="detalhesTitulo"></h3>
+                <p><b>Patrimônio:</b> <span id="detalhesPat"></span></p>
+                <p><b>Setor:</b> <span id="detalhesSetor"></span></p>
+
+                <h4>Fotos</h4>
+                <div id="listaFotos"></div>
+                <br>
+                <button onclick="openCameraModal(true)">Adicionar Foto</button><br><br>
+
+                <h4>Histórico de Manutenção</h4>
+                <div id="listaManutencao"></div>
+                <br>
+                <button onclick="abrirModalManutencao()">Adicionar Manutenção</button>
+            </div>
+
         </div>
-        <div style="display:flex;justify-content:flex-end">
-          <button id="saveMaintBtn" class="btn">Salvar</button>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- Scripts (ordem importante) -->
-  <script src="firebase.js"></script>
-  <script src="camera.js"></script>
-  <script src="storage.js"></script>
-  <script src="manutencao.js"></script>
-  <script src="app.js"></script>
+    <!-- MODAL CAMERA -->
+    <div id="cameraModal">
+        <div class="modal-content">
+            <video id="cameraVideo" autoplay></video>
+            <button onclick="capturarFoto()">Capturar</button><br><br>
+            <button onclick="fecharCameraModal()">Fechar</button>
+        </div>
+    </div>
+
+    <!-- MODAL MANUTENÇÃO -->
+    <div id="manutencaoModal">
+        <div class="modal-content">
+            <h3>Adicionar Manutenção</h3>
+            <textarea id="manutencaoTexto" style="width:100%;height:100px;"></textarea><br><br>
+            <button onclick="salvarManutencao()">Salvar</button><br><br>
+            <button onclick="fecharManutencaoModal()">Fechar</button>
+        </div>
+    </div>
+
+
+    <!-- SCRIPTS -->
+    <script src="firebase.js"></script>
+    <script src="camera.js"></script>
+    <script src="storage-imagekit.js"></script>
+    <script src="manutencao.js"></script>
+    <script src="app.js"></script>
+
 </body>
 </html>
