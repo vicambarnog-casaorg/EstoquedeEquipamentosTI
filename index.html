@@ -37,6 +37,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .photo-wrapper{position:relative}
 .photo-wrapper:hover::after{content:"🔍 Clique para ampliar";position:absolute;bottom:-20px;left:0;right:0;font-size:10px;color:#666;text-align:center}
+.loading{filter:blur(5px);opacity:0.7}
 </style>
 </head>
 <body>
@@ -54,7 +55,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
   <div id="imageModal" class="modal image-modal">
     <div class="image-modal-content">
       <button class="image-nav prev" onclick="navImage(-1)">❮</button>
-      <img id="modalImage" class="image-modal-img" src="" alt="Imagem ampliada">
+      <img id="modalImage" class="image-modal-img" src="" alt="Imagem ampliada" onload="this.classList.remove('loading')" onerror="this.onerror=null;this.src=this.src.replace(/-\\/resize\\/800x800\\/-\\/quality\\/70\\/-\\/format\\/webp\\//,'');">
       <button class="image-nav next" onclick="navImage(1)">❯</button>
       <button class="image-close" onclick="fecharModalImagem()">×</button>
       <div id="imageCounter" class="image-counter"></div>
@@ -211,6 +212,17 @@ let currentProductId = null;
 let currentImageIndex = 0;
 let currentImages = [];
 
+// Funções auxiliares para URLs do Uploadcare
+function getThumbnailUrl(cdnUrl) {
+  // URL otimizada para miniaturas
+  return cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
+}
+
+function getOriginalUrl(cdnUrl) {
+  // URL original sem otimizações para visualização
+  return cdnUrl;
+}
+
 // Configurar Uploadcare
 document.addEventListener('DOMContentLoaded', function() {
   // Uploadcare para novo produto
@@ -218,16 +230,22 @@ document.addEventListener('DOMContentLoaded', function() {
     uploader = uploadcare.Widget("#uploadcare");
     
     uploader.onUploadComplete(file=>{
-      const otimizada = file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
-      fotos.push(otimizada);
+      const originalUrl = getOriginalUrl(file.cdnUrl);
+      const thumbnailUrl = getThumbnailUrl(file.cdnUrl);
+      
+      // Salvar a URL original
+      fotos.push(originalUrl);
+      
       const preview = document.getElementById("preview");
       if (preview) {
         preview.innerHTML += `
           <div class="photo-wrapper">
-            <img src="${otimizada}" 
+            <img src="${thumbnailUrl}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagem('${otimizada}', ${fotos.length - 1}, ${JSON.stringify(fotos).replace(/"/g, '&quot;')})"
-                 title="Clique para ampliar">
+                 data-original="${originalUrl}"
+                 onclick="visualizarImagem('${originalUrl}', ${fotos.length - 1}, ${JSON.stringify(fotos).replace(/"/g, '&quot;')})"
+                 title="Clique para ampliar"
+                 onerror="this.src=this.getAttribute('data-original')">
           </div>`;
       }
     });
@@ -238,16 +256,22 @@ document.addEventListener('DOMContentLoaded', function() {
     editUploader = uploadcare.Widget("#editUploadcare");
     
     editUploader.onUploadComplete(file=>{
-      const otimizada = file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
-      editFotos.push(otimizada);
+      const originalUrl = getOriginalUrl(file.cdnUrl);
+      const thumbnailUrl = getThumbnailUrl(file.cdnUrl);
+      
+      // Salvar a URL original
+      editFotos.push(originalUrl);
+      
       const editPreview = document.getElementById("editPreview");
       if (editPreview) {
         editPreview.innerHTML += `
           <div class="photo-wrapper">
-            <img src="${otimizada}" 
+            <img src="${thumbnailUrl}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagem('${otimizada}', ${editFotos.length - 1}, ${JSON.stringify([...editFotos]).replace(/"/g, '&quot;')})"
-                 title="Clique para ampliar">
+                 data-original="${originalUrl}"
+                 onclick="visualizarImagem('${originalUrl}', ${editFotos.length - 1}, ${JSON.stringify([...editFotos]).replace(/"/g, '&quot;')})"
+                 title="Clique para ampliar"
+                 onerror="this.src=this.getAttribute('data-original')">
           </div>`;
       }
     });
@@ -505,12 +529,15 @@ function atualizarListaProdutos(querySnapshot) {
     if (fotosArray.length > 0) {
       fotosHTML = `<div class="photo-container">`;
       fotosArray.forEach((foto, index) => {
+        const thumbnailUrl = getThumbnailUrl(foto);
         fotosHTML += `
           <div class="photo-wrapper">
-            <img src="${foto}" 
+            <img src="${thumbnailUrl}" 
                  class="photo-thumbnail" 
+                 data-original="${foto}"
                  onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(fotosArray).replace(/"/g, '&quot;')})"
-                 title="Clique para ampliar">
+                 title="Clique para ampliar"
+                 onerror="this.src=this.getAttribute('data-original')">
           </div>`;
       });
       fotosHTML += `</div>`;
@@ -603,6 +630,10 @@ function visualizarImagem(src, index, fotosArray) {
     const imageModal = document.getElementById("imageModal");
     
     if (modalImage && imageCounter && imageModal) {
+      // Adicionar classe de loading
+      modalImage.classList.add('loading');
+      
+      // Usar a URL original para visualização
       modalImage.src = currentImages[currentImageIndex];
       imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
       imageModal.style.display = "flex";
@@ -644,6 +675,10 @@ function navImage(direction) {
   const imageCounter = document.getElementById("imageCounter");
   
   if (modalImage && imageCounter) {
+    // Adicionar classe de loading
+    modalImage.classList.add('loading');
+    
+    // Usar a URL original
     modalImage.src = currentImages[currentImageIndex];
     imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
   }
@@ -674,12 +709,15 @@ function abrirModalEdicao(produtoId, produto) {
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += `<div class="photo-container">`;
     produto.fotos.forEach((foto, index) => {
+      const thumbnailUrl = getThumbnailUrl(foto);
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
-          <img src="${foto}" 
+          <img src="${thumbnailUrl}" 
                class="photo-thumbnail" 
+               data-original="${foto}"
                onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
-               title="Clique para ampliar">
+               title="Clique para ampliar"
+               onerror="this.src=this.getAttribute('data-original')">
         </div>`;
     });
     editCurrentPhotos.innerHTML += `</div>`;
@@ -758,11 +796,11 @@ async function atualizarProduto() {
     
     if (!produtoDoc.empty) {
       const produtoAtual = produtoDoc.docs[0].data();
-      // Manter fotos existentes
+      // Manter fotos existentes (já são URLs originais)
       fotosAtualizadas = [...(produtoAtual.fotos || [])];
     }
     
-    // Adicionar novas fotos
+    // Adicionar novas fotos (já são URLs originais)
     fotosAtualizadas = [...fotosAtualizadas, ...editFotos];
     
     // Atualizar no Firestore
