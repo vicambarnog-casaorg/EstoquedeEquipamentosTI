@@ -16,13 +16,27 @@ button{padding:8px 12px;border:0;border-radius:6px;cursor:pointer}
 .btn-edit{background:#f59e0b;color:#fff}
 .btn-delete{background:#dc2626;color:#fff}
 .btn-cancel{background:#6b7280;color:#fff}
+.btn-view{background:#10b981;color:#fff}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
-img{max-width:70px;border-radius:6px;margin-right:4px}
-.photo-thumbnail{width:70px;height:70px;object-fit:cover;border-radius:6px;margin-right:4px}
+.photo-thumbnail{width:70px;height:70px;object-fit:cover;border-radius:6px;margin-right:4px;cursor:pointer;transition:transform 0.2s}
+.photo-thumbnail:hover{transform:scale(1.05)}
 .action-buttons{display:flex;gap:5px}
-.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:1000;align-items:center;justify-content:center}
 .modal-content{background:#fff;padding:20px;border-radius:10px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto}
+.image-modal{background:rgba(0,0,0,0.95);cursor:pointer}
+.image-modal-content{background:transparent;padding:0;max-width:90vw;max-height:90vh;width:auto;display:flex;align-items:center;justify-content:center}
+.image-modal-img{max-width:100%;max-height:90vh;object-fit:contain;border-radius:5px}
+.image-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.2);color:white;border:none;width:50px;height:50px;border-radius:50%;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.3s}
+.image-nav:hover{background:rgba(255,255,255,0.4)}
+.image-nav.prev{left:20px}
+.image-nav.next{right:20px}
+.image-counter{position:absolute;bottom:20px;left:0;right:0;text-align:center;color:white;font-size:16px}
+.image-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.2);color:white;border:none;width:40px;height:40px;border-radius:50%;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.image-close:hover{background:rgba(255,255,255,0.4)}
+.photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.photo-wrapper{position:relative}
+.photo-wrapper:hover::after{content:"🔍 Clique para ampliar";position:absolute;bottom:-20px;left:0;right:0;font-size:10px;color:#666;text-align:center}
 </style>
 </head>
 <body>
@@ -36,6 +50,46 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
 </header>
 
 <main>
+  <!-- Modal para Visualização de Imagem -->
+  <div id="imageModal" class="modal image-modal">
+    <div class="image-modal-content">
+      <button class="image-nav prev" onclick="navImage(-1)">❮</button>
+      <img id="modalImage" class="image-modal-img" src="" alt="Imagem ampliada">
+      <button class="image-nav next" onclick="navImage(1)">❯</button>
+      <button class="image-close" onclick="fecharModalImagem()">×</button>
+      <div id="imageCounter" class="image-counter"></div>
+    </div>
+  </div>
+
+  <!-- Modal para Edição -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <h3>Editar Produto</h3>
+      <input id="editNumero" placeholder="Número do patrimônio"><br><br>
+      <input id="editEquipamento" placeholder="Equipamento"><br><br>
+      <input id="editSetor" placeholder="Setor"><br><br>
+      
+      <div id="editCurrentPhotos" style="margin-bottom:10px"></div>
+      
+      <div id="editPhotoUploadContainer">
+        <input type="hidden"
+          id="editUploadcare"
+          role="uploadcare-uploader"
+          data-images-only="true"
+          data-camera="true"
+          data-multiple="true">
+        <div id="editPreview" style="margin-top:10px"></div>
+      </div>
+      
+      <br>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button id="cancelEditBtn" class="btn-cancel">Cancelar</button>
+        <button id="updateProductBtn" class="btn">Atualizar</button>
+      </div>
+      <p id="editError" style="color:red;display:none"></p>
+    </div>
+  </div>
+
   <!-- LOGIN -->
   <div id="loginCard" class="card">
     <h3>Login</h3>
@@ -49,35 +103,6 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
 
   <!-- APP -->
   <div id="app" class="hidden">
-    <!-- Modal para Edição -->
-    <div id="editModal" class="modal">
-      <div class="modal-content">
-        <h3>Editar Produto</h3>
-        <input id="editNumero" placeholder="Número do patrimônio"><br><br>
-        <input id="editEquipamento" placeholder="Equipamento"><br><br>
-        <input id="editSetor" placeholder="Setor"><br><br>
-        
-        <div id="editCurrentPhotos" style="margin-bottom:10px"></div>
-        
-        <div id="editPhotoUploadContainer">
-          <input type="hidden"
-            id="editUploadcare"
-            role="uploadcare-uploader"
-            data-images-only="true"
-            data-camera="true"
-            data-multiple="true">
-          <div id="editPreview" style="margin-top:10px"></div>
-        </div>
-        
-        <br>
-        <div style="display:flex;gap:10px;justify-content:flex-end">
-          <button id="cancelEditBtn" class="btn-cancel">Cancelar</button>
-          <button id="updateProductBtn" class="btn">Atualizar</button>
-        </div>
-        <p id="editError" style="color:red;display:none"></p>
-      </div>
-    </div>
-
     <!-- Formulário Principal -->
     <div class="card">
       <h3>Novo Produto</h3>
@@ -92,7 +117,7 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
         data-camera="true"
         data-multiple="true">
 
-      <div id="preview" style="margin-top:10px"></div><br>
+      <div id="preview" style="margin-top:10px" class="photo-container"></div><br>
 
       <button id="saveProductBtn" class="btn">Salvar produto</button>
       <p id="saveError" style="color:red;display:none"></p>
@@ -183,6 +208,8 @@ let lastVisible = null;
 let currentPage = 1;
 const itemsPerPage = 10;
 let currentProductId = null;
+let currentImageIndex = 0;
+let currentImages = [];
 
 // Configurar Uploadcare
 document.addEventListener('DOMContentLoaded', function() {
@@ -195,12 +222,18 @@ document.addEventListener('DOMContentLoaded', function() {
       fotos.push(otimizada);
       const preview = document.getElementById("preview");
       if (preview) {
-        preview.innerHTML += `<img src="${otimizada}" class="photo-thumbnail">`;
+        preview.innerHTML += `
+          <div class="photo-wrapper">
+            <img src="${otimizada}" 
+                 class="photo-thumbnail" 
+                 onclick="visualizarImagem('${otimizada}', ${fotos.length - 1}, ${JSON.stringify(fotos).replace(/"/g, '&quot;')})"
+                 title="Clique para ampliar">
+          </div>`;
       }
     });
   }
   
-  // Uploadcare para edição (inicializado depois)
+  // Uploadcare para edição
   if (document.getElementById("editUploadcare")) {
     editUploader = uploadcare.Widget("#editUploadcare");
     
@@ -209,7 +242,13 @@ document.addEventListener('DOMContentLoaded', function() {
       editFotos.push(otimizada);
       const editPreview = document.getElementById("editPreview");
       if (editPreview) {
-        editPreview.innerHTML += `<img src="${otimizada}" class="photo-thumbnail">`;
+        editPreview.innerHTML += `
+          <div class="photo-wrapper">
+            <img src="${otimizada}" 
+                 class="photo-thumbnail" 
+                 onclick="visualizarImagem('${otimizada}', ${editFotos.length - 1}, ${JSON.stringify([...editFotos]).replace(/"/g, '&quot;')})"
+                 title="Clique para ampliar">
+          </div>`;
       }
     });
   }
@@ -259,14 +298,30 @@ function setupEventListeners() {
   if (cancelEditBtn) cancelEditBtn.addEventListener('click', fecharModalEdicao);
   if (updateProductBtn) updateProductBtn.addEventListener('click', atualizarProduto);
   
-  // Fechar modal ao clicar fora
-  if (editModal) {
-    editModal.addEventListener('click', function(e) {
-      if (e.target === editModal) {
-        fecharModalEdicao();
-      }
-    });
-  }
+  // Fechar modais ao clicar fora
+  const modals = [document.getElementById("editModal"), document.getElementById("imageModal")];
+  modals.forEach(modal => {
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          if (modal.id === "editModal") fecharModalEdicao();
+          if (modal.id === "imageModal") fecharModalImagem();
+        }
+      });
+    }
+  });
+  
+  // Fechar modal de imagem com ESC
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      fecharModalImagem();
+    }
+    // Navegação com setas
+    if (document.getElementById("imageModal").style.display === 'flex') {
+      if (e.key === 'ArrowLeft') navImage(-1);
+      if (e.key === 'ArrowRight') navImage(1);
+    }
+  });
   
   // Paginação
   if (prevPageBtn) prevPageBtn.addEventListener('click', paginaAnterior);
@@ -443,13 +498,30 @@ function atualizarListaProdutos(querySnapshot) {
   querySnapshot.forEach(doc => {
     const produto = doc.data();
     const produtoId = doc.id;
+    const fotosArray = produto.fotos || [];
+    
+    // Gerar HTML para as fotos
+    let fotosHTML = "Nenhuma foto";
+    if (fotosArray.length > 0) {
+      fotosHTML = `<div class="photo-container">`;
+      fotosArray.forEach((foto, index) => {
+        fotosHTML += `
+          <div class="photo-wrapper">
+            <img src="${foto}" 
+                 class="photo-thumbnail" 
+                 onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(fotosArray).replace(/"/g, '&quot;')})"
+                 title="Clique para ampliar">
+          </div>`;
+      });
+      fotosHTML += `</div>`;
+    }
     
     lista.innerHTML += `
       <tr id="produto-${produtoId}">
         <td>${produto.numero || ''}</td>
         <td>${produto.equipamento || ''}</td>
         <td>${produto.setor || ''}</td>
-        <td>${(produto.fotos || []).map(f => `<img src="${f}" class="photo-thumbnail" alt="Foto">`).join("")}</td>
+        <td>${fotosHTML}</td>
         <td>
           <div class="action-buttons">
             <button class="btn-edit" onclick="editarProduto('${produtoId}')">Editar</button>
@@ -514,6 +586,78 @@ async function paginaAnterior() {
   }
 }
 
+// Funções de Visualização de Imagens
+function visualizarImagem(src, index, fotosArray) {
+  try {
+    // Converter string de array para array real
+    if (typeof fotosArray === 'string') {
+      fotosArray = JSON.parse(fotosArray.replace(/&quot;/g, '"'));
+    }
+    
+    currentImages = Array.isArray(fotosArray) ? fotosArray : [src];
+    currentImageIndex = index || 0;
+    
+    // Atualizar imagem no modal
+    const modalImage = document.getElementById("modalImage");
+    const imageCounter = document.getElementById("imageCounter");
+    const imageModal = document.getElementById("imageModal");
+    
+    if (modalImage && imageCounter && imageModal) {
+      modalImage.src = currentImages[currentImageIndex];
+      imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
+      imageModal.style.display = "flex";
+      
+      // Mostrar/ocultar botões de navegação se houver mais de uma imagem
+      document.querySelectorAll('.image-nav').forEach(nav => {
+        nav.style.display = currentImages.length > 1 ? 'flex' : 'none';
+      });
+    }
+  } catch (error) {
+    console.error("Erro ao visualizar imagem:", error);
+    // Fallback: mostrar apenas a imagem clicada
+    const modalImage = document.getElementById("modalImage");
+    const imageModal = document.getElementById("imageModal");
+    if (modalImage && imageModal) {
+      modalImage.src = src;
+      currentImages = [src];
+      currentImageIndex = 0;
+      imageModal.style.display = "flex";
+      document.getElementById("imageCounter").textContent = "1 / 1";
+      document.querySelectorAll('.image-nav').forEach(nav => {
+        nav.style.display = 'none';
+      });
+    }
+  }
+}
+
+function navImage(direction) {
+  currentImageIndex += direction;
+  
+  // Circular navigation
+  if (currentImageIndex < 0) {
+    currentImageIndex = currentImages.length - 1;
+  } else if (currentImageIndex >= currentImages.length) {
+    currentImageIndex = 0;
+  }
+  
+  const modalImage = document.getElementById("modalImage");
+  const imageCounter = document.getElementById("imageCounter");
+  
+  if (modalImage && imageCounter) {
+    modalImage.src = currentImages[currentImageIndex];
+    imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
+  }
+}
+
+function fecharModalImagem() {
+  const imageModal = document.getElementById("imageModal");
+  if (imageModal) {
+    imageModal.style.display = "none";
+  }
+  currentImages = [];
+  currentImageIndex = 0;
+}
+
 // Funções de edição
 function abrirModalEdicao(produtoId, produto) {
   currentProductId = produtoId;
@@ -528,9 +672,17 @@ function abrirModalEdicao(produtoId, produto) {
   editCurrentPhotos.innerHTML = "<strong>Fotos atuais:</strong><br>";
   
   if (produto.fotos && produto.fotos.length > 0) {
-    produto.fotos.forEach(foto => {
-      editCurrentPhotos.innerHTML += `<img src="${foto}" class="photo-thumbnail">`;
+    editCurrentPhotos.innerHTML += `<div class="photo-container">`;
+    produto.fotos.forEach((foto, index) => {
+      editCurrentPhotos.innerHTML += `
+        <div class="photo-wrapper">
+          <img src="${foto}" 
+               class="photo-thumbnail" 
+               onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
+               title="Clique para ampliar">
+        </div>`;
     });
+    editCurrentPhotos.innerHTML += `</div>`;
   } else {
     editCurrentPhotos.innerHTML += "Nenhuma foto";
   }
@@ -739,6 +891,9 @@ async function salvarProduto() {
 // Tornar funções disponíveis globalmente para os botões onclick
 window.editarProduto = editarProduto;
 window.confirmarExclusao = confirmarExclusao;
+window.visualizarImagem = visualizarImagem;
+window.navImage = navImage;
+window.fecharModalImagem = fecharModalImagem;
 </script>
 
 </body>
