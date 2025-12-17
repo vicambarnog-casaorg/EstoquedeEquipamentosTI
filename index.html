@@ -36,6 +36,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .photo-wrapper{position:relative}
 .photo-wrapper:hover::after{content:"🔍 Clique para ampliar";position:absolute;bottom:-20px;left:0;right:0;font-size:10px;color:#666;text-align:center}
+.info-text{font-size:12px;color:#666;margin-top:5px;font-style:italic}
 </style>
 </head>
 <body>
@@ -69,6 +70,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       <input id="editSetor" placeholder="Setor"><br><br>
       
       <div id="editCurrentPhotos" style="margin-bottom:10px"></div>
+      <p class="info-text">Fotos hospedadas no Uploadcare</p>
       
       <div id="editPhotoUploadContainer">
         <input type="hidden"
@@ -115,8 +117,10 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
         data-images-only="true"
         data-camera="true"
         data-multiple="true">
-
-      <div id="preview" style="margin-top:10px" class="photo-container"></div><br>
+      
+      <div id="preview" style="margin-top:10px" class="photo-container"></div>
+      <p class="info-text">Fotos são armazenadas no Uploadcare e apenas as URLs são salvas no Firebase</p>
+      <br>
 
       <button id="saveProductBtn" class="btn">Salvar produto</button>
       <p id="saveError" style="color:red;display:none"></p>
@@ -199,8 +203,8 @@ const auth = getAuth();
 const db = getFirestore();
 
 // Variáveis globais
-let fotos = [];
-let editFotos = [];
+let fotoUrls = []; // Armazena apenas URLs do Uploadcare
+let editFotoUrls = []; // URLs para edição
 let editUploader = null;
 let uploader = null;
 let lastVisible = null;
@@ -217,19 +221,19 @@ document.addEventListener('DOMContentLoaded', function() {
     uploader = uploadcare.Widget("#uploadcare");
     
     uploader.onUploadComplete(file=>{
-      // Usar a URL diretamente do Uploadcare SEM manipulações
-      const imageUrl = file.cdnUrl;
+      // O Uploadcare retorna a URL da imagem hospedada
+      const uploadcareUrl = file.cdnUrl;
       
-      // Salvar a URL original
-      fotos.push(imageUrl);
+      // Salvar APENAS a URL no array
+      fotoUrls.push(uploadcareUrl);
       
       const preview = document.getElementById("preview");
       if (preview) {
         preview.innerHTML += `
           <div class="photo-wrapper">
-            <img src="${imageUrl}" 
+            <img src="${uploadcareUrl}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagem('${imageUrl}', ${fotos.length - 1}, ${JSON.stringify(fotos).replace(/"/g, '&quot;')})"
+                 onclick="visualizarImagem('${uploadcareUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
       }
@@ -241,19 +245,19 @@ document.addEventListener('DOMContentLoaded', function() {
     editUploader = uploadcare.Widget("#editUploadcare");
     
     editUploader.onUploadComplete(file=>{
-      // Usar a URL diretamente do Uploadcare SEM manipulações
-      const imageUrl = file.cdnUrl;
+      // O Uploadcare retorna a URL da imagem hospedada
+      const uploadcareUrl = file.cdnUrl;
       
-      // Salvar a URL original
-      editFotos.push(imageUrl);
+      // Salvar APENAS a URL no array
+      editFotoUrls.push(uploadcareUrl);
       
       const editPreview = document.getElementById("editPreview");
       if (editPreview) {
         editPreview.innerHTML += `
           <div class="photo-wrapper">
-            <img src="${imageUrl}" 
+            <img src="${uploadcareUrl}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagem('${imageUrl}', ${editFotos.length - 1}, ${JSON.stringify([...editFotos]).replace(/"/g, '&quot;')})"
+                 onclick="visualizarImagem('${uploadcareUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify([...editFotoUrls]).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
       }
@@ -505,18 +509,18 @@ function atualizarListaProdutos(querySnapshot) {
   querySnapshot.forEach(doc => {
     const produto = doc.data();
     const produtoId = doc.id;
-    const fotosArray = produto.fotos || [];
+    const fotoUrlsArray = produto.fotos || []; // URLs do Uploadcare
     
     // Gerar HTML para as fotos
     let fotosHTML = "Nenhuma foto";
-    if (fotosArray.length > 0) {
+    if (fotoUrlsArray.length > 0) {
       fotosHTML = `<div class="photo-container">`;
-      fotosArray.forEach((foto, index) => {
+      fotoUrlsArray.forEach((url, index) => {
         fotosHTML += `
           <div class="photo-wrapper">
-            <img src="${foto}" 
+            <img src="${url}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(fotosArray).replace(/"/g, '&quot;')})"
+                 onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(fotoUrlsArray).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
       });
@@ -594,14 +598,14 @@ async function paginaAnterior() {
 }
 
 // Funções de Visualização de Imagens
-function visualizarImagem(src, index, fotosArray) {
+function visualizarImagem(src, index, fotoUrlsArray) {
   try {
     // Converter string de array para array real
-    if (typeof fotosArray === 'string') {
-      fotosArray = JSON.parse(fotosArray.replace(/&quot;/g, '"'));
+    if (typeof fotoUrlsArray === 'string') {
+      fotoUrlsArray = JSON.parse(fotoUrlsArray.replace(/&quot;/g, '"'));
     }
     
-    currentImages = Array.isArray(fotosArray) ? fotosArray : [src];
+    currentImages = Array.isArray(fotoUrlsArray) ? fotoUrlsArray : [src];
     currentImageIndex = index || 0;
     
     // Atualizar imagem no modal
@@ -674,18 +678,18 @@ function abrirModalEdicao(produtoId, produto) {
   document.getElementById("editEquipamento").value = produto.equipamento || "";
   document.getElementById("editSetor").value = produto.setor || "";
   
-  // Mostrar fotos atuais
+  // Mostrar fotos atuais (URLs do Uploadcare)
   const editCurrentPhotos = document.getElementById("editCurrentPhotos");
-  editCurrentPhotos.innerHTML = "<strong>Fotos atuais:</strong><br>";
+  editCurrentPhotos.innerHTML = "<strong>Fotos atuais (hospedadas no Uploadcare):</strong><br>";
   
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += `<div class="photo-container">`;
-    produto.fotos.forEach((foto, index) => {
+    produto.fotos.forEach((url, index) => {
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
-          <img src="${foto}" 
+          <img src="${url}" 
                class="photo-thumbnail" 
-               onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
+               onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
                title="Clique para ampliar">
         </div>`;
     });
@@ -695,7 +699,7 @@ function abrirModalEdicao(produtoId, produto) {
   }
   
   // Limpar fotos novas
-  editFotos = [];
+  editFotoUrls = [];
   document.getElementById("editPreview").innerHTML = "";
   if (editUploader) editUploader.value(null);
   
@@ -706,7 +710,7 @@ function abrirModalEdicao(produtoId, produto) {
 function fecharModalEdicao() {
   document.getElementById("editModal").style.display = "none";
   currentProductId = null;
-  editFotos = [];
+  editFotoUrls = [];
   document.getElementById("editPreview").innerHTML = "";
   document.getElementById("editError").style.display = "none";
 }
@@ -757,27 +761,27 @@ async function atualizarProduto() {
   try {
     if (editError) editError.style.display = "none";
     
-    // Primeiro, buscar o produto atual para preservar fotos existentes
+    // Primeiro, buscar o produto atual para preservar URLs existentes
     const produtoRef = doc(db, "produtos", currentProductId);
     const produtoDoc = await getDocs(query(collection(db, "produtos"), where("__name__", "==", currentProductId)));
     
-    let fotosAtualizadas = [];
+    let urlsAtualizadas = [];
     
     if (!produtoDoc.empty) {
       const produtoAtual = produtoDoc.docs[0].data();
-      // Manter fotos existentes
-      fotosAtualizadas = [...(produtoAtual.fotos || [])];
+      // Manter URLs existentes do Uploadcare
+      urlsAtualizadas = [...(produtoAtual.fotos || [])];
     }
     
-    // Adicionar novas fotos
-    fotosAtualizadas = [...fotosAtualizadas, ...editFotos];
+    // Adicionar novas URLs do Uploadcare
+    urlsAtualizadas = [...urlsAtualizadas, ...editFotoUrls];
     
-    // Atualizar no Firestore
+    // Atualizar no Firestore (apenas as URLs)
     await updateDoc(produtoRef, {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
-      fotos: fotosAtualizadas,
+      fotos: urlsAtualizadas, // Apenas URLs do Uploadcare
       atualizadoEm: Timestamp.now(),
       atualizadoPor: auth.currentUser?.email || "desconhecido"
     });
@@ -814,6 +818,9 @@ async function excluirProduto(produtoId) {
   try {
     await deleteDoc(doc(db, "produtos", produtoId));
     
+    // NOTA: As imagens continuam no Uploadcare
+    // Para deletar as imagens também, seria necessário chamar a API do Uploadcare
+    
     // Remover da lista visualmente
     const elemento = document.getElementById(`produto-${produtoId}`);
     if (elemento) {
@@ -826,7 +833,7 @@ async function excluirProduto(produtoId) {
       carregarProdutos();
     }
     
-    alert("✅ Produto excluído com sucesso!");
+    alert("✅ Produto excluído com sucesso! (As imagens continuam no Uploadcare)");
     
   } catch (error) {
     console.error("Erro ao excluir produto:", error);
@@ -861,11 +868,12 @@ async function salvarProduto() {
   try {
     if (saveError) saveError.style.display = "none";
     
+    // Salvar no Firestore - APENAS os dados do produto e URLs das imagens
     await addDoc(collection(db, "produtos"), {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
-      fotos: fotos,
+      fotos: fotoUrls, // Apenas URLs do Uploadcare
       timestamp: Timestamp.now(),
       criadoPor: auth.currentUser?.email || "desconhecido"
     });
@@ -874,7 +882,7 @@ async function salvarProduto() {
     numero.value = "";
     equipamento.value = "";
     setor.value = "";
-    fotos = [];
+    fotoUrls = []; // Limpar array de URLs
     if (preview) preview.innerHTML = "";
     if (uploader) uploader.value(null);
     
@@ -883,7 +891,7 @@ async function salvarProduto() {
     lastVisible = null;
     await carregarProdutos();
     
-    alert("✅ Produto salvo com sucesso!");
+    alert("✅ Produto salvo com sucesso!\n\n📁 Imagens: Armazenadas no Uploadcare\n📊 Dados: Armazenados no Firebase");
     
   } catch (error) {
     console.error("Erro ao salvar produto:", error);
