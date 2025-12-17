@@ -110,22 +110,23 @@ auth.onAuthStateChanged(u=>{
 // Upload Cloudinary
 async function upload(file){
  try{
-  console.log("Tentando upload:",file.name,file.type,file.size);
+  console.log("Upload:",file.name,file.type,file.size,"bytes");
   const fd=new FormData();
   fd.append("file",file);
   fd.append("upload_preset","unsigned_patrimonio");
   fd.append("folder","patrimonio");
   const r=await fetch("https://api.cloudinary.com/v1_1/dwanrvvob/image/upload",{method:"POST",body:fd});
   const json=await r.json();
-  console.log("Resposta Cloudinary:",json);
   if(!r.ok){
-   alert("Erro no upload: "+(json.error?.message||"Erro desconhecido"));
+   console.error("Erro Cloudinary:",json);
+   alert("Erro no upload: "+(json.error?.message||JSON.stringify(json.error)||"Erro desconhecido"));
    return null;
   }
+  console.log("Upload OK:",json.secure_url);
   return json.secure_url;
  }catch(e){
   console.error("Erro upload:",e);
-  alert("Erro ao fazer upload da imagem: "+e.message);
+  alert("Erro ao fazer upload: "+e.message);
   return null;
  }
 }
@@ -144,7 +145,10 @@ closeCamBtn.onclick=()=>{cameraModal.classList.remove("show");video.srcObject.ge
 captureBtn.onclick=()=>{
  const c=document.createElement("canvas");c.width=300;c.height=300;
  c.getContext("2d").drawImage(video,0,0,300,300);
- c.toBlob(b=>preview(b),"image/jpeg",0.6);
+ c.toBlob(b=>{
+  const file=new File([b],"camera-"+Date.now()+".jpg",{type:"image/jpeg"});
+  preview(file);
+ },"image/jpeg",0.6);
  closeCamBtn.onclick();
 };
 
