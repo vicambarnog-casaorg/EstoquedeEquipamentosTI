@@ -210,49 +210,6 @@ let currentProductId = null;
 let currentImageIndex = 0;
 let currentImages = [];
 
-// Funções auxiliares para URLs do Uploadcare
-function getThumbnailUrl(cdnUrl) {
-  // Para miniaturas, usamos a URL com otimização
-  // Apenas remove parâmetros se já tiver, então adiciona otimização
-  let cleanUrl = cdnUrl;
-  
-  // Remove qualquer otimização existente
-  const optimizationIndex = cleanUrl.indexOf('/-/');
-  if (optimizationIndex !== -1) {
-    cleanUrl = cleanUrl.substring(0, optimizationIndex);
-  }
-  
-  // Adiciona otimização para thumbnail
-  return cleanUrl + '-/resize/300x300/-/format/auto/-/quality/smart/';
-}
-
-function getViewUrl(cdnUrl) {
-  // Para visualização, usamos a URL com tamanho maior
-  let cleanUrl = cdnUrl;
-  
-  // Remove qualquer otimização existente
-  const optimizationIndex = cleanUrl.indexOf('/-/');
-  if (optimizationIndex !== -1) {
-    cleanUrl = cleanUrl.substring(0, optimizationIndex);
-  }
-  
-  // Para visualização, usamos tamanho maior mas ainda otimizado
-  return cleanUrl + '-/resize/1200x1200/-/format/auto/-/quality/smart/';
-}
-
-function getOriginalUrl(cdnUrl) {
-  // URL original sem otimizações
-  let cleanUrl = cdnUrl;
-  
-  // Remove qualquer otimização existente
-  const optimizationIndex = cleanUrl.indexOf('/-/');
-  if (optimizationIndex !== -1) {
-    cleanUrl = cleanUrl.substring(0, optimizationIndex);
-  }
-  
-  return cleanUrl;
-}
-
 // Configurar Uploadcare
 document.addEventListener('DOMContentLoaded', function() {
   // Uploadcare para novo produto
@@ -260,21 +217,19 @@ document.addEventListener('DOMContentLoaded', function() {
     uploader = uploadcare.Widget("#uploadcare");
     
     uploader.onUploadComplete(file=>{
-      const originalUrl = getOriginalUrl(file.cdnUrl);
-      const thumbnailUrl = getThumbnailUrl(file.cdnUrl);
+      // Usar a URL diretamente do Uploadcare SEM manipulações
+      const imageUrl = file.cdnUrl;
       
       // Salvar a URL original
-      fotos.push(originalUrl);
+      fotos.push(imageUrl);
       
       const preview = document.getElementById("preview");
       if (preview) {
         preview.innerHTML += `
           <div class="photo-wrapper">
-            <img src="${thumbnailUrl}" 
+            <img src="${imageUrl}" 
                  class="photo-thumbnail" 
-                 data-original="${originalUrl}"
-                 data-view="${getViewUrl(file.cdnUrl)}"
-                 onclick="visualizarImagem(this.getAttribute('data-view'), ${fotos.length - 1}, ${JSON.stringify(fotos).replace(/"/g, '&quot;')})"
+                 onclick="visualizarImagem('${imageUrl}', ${fotos.length - 1}, ${JSON.stringify(fotos).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
       }
@@ -286,21 +241,19 @@ document.addEventListener('DOMContentLoaded', function() {
     editUploader = uploadcare.Widget("#editUploadcare");
     
     editUploader.onUploadComplete(file=>{
-      const originalUrl = getOriginalUrl(file.cdnUrl);
-      const thumbnailUrl = getThumbnailUrl(file.cdnUrl);
+      // Usar a URL diretamente do Uploadcare SEM manipulações
+      const imageUrl = file.cdnUrl;
       
       // Salvar a URL original
-      editFotos.push(originalUrl);
+      editFotos.push(imageUrl);
       
       const editPreview = document.getElementById("editPreview");
       if (editPreview) {
         editPreview.innerHTML += `
           <div class="photo-wrapper">
-            <img src="${thumbnailUrl}" 
+            <img src="${imageUrl}" 
                  class="photo-thumbnail" 
-                 data-original="${originalUrl}"
-                 data-view="${getViewUrl(file.cdnUrl)}"
-                 onclick="visualizarImagem(this.getAttribute('data-view'), ${editFotos.length - 1}, ${JSON.stringify([...editFotos]).replace(/"/g, '&quot;')})"
+                 onclick="visualizarImagem('${imageUrl}', ${editFotos.length - 1}, ${JSON.stringify([...editFotos]).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
       }
@@ -559,15 +512,11 @@ function atualizarListaProdutos(querySnapshot) {
     if (fotosArray.length > 0) {
       fotosHTML = `<div class="photo-container">`;
       fotosArray.forEach((foto, index) => {
-        const thumbnailUrl = getThumbnailUrl(foto);
-        const viewUrl = getViewUrl(foto);
         fotosHTML += `
           <div class="photo-wrapper">
-            <img src="${thumbnailUrl}" 
+            <img src="${foto}" 
                  class="photo-thumbnail" 
-                 data-original="${foto}"
-                 data-view="${viewUrl}"
-                 onclick="visualizarImagem('${viewUrl}', ${index}, ${JSON.stringify(fotosArray.map(f => getViewUrl(f))).replace(/"/g, '&quot;')})"
+                 onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(fotosArray).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
       });
@@ -661,7 +610,6 @@ function visualizarImagem(src, index, fotosArray) {
     const imageModal = document.getElementById("imageModal");
     
     if (modalImage && imageCounter && imageModal) {
-      // Usar a URL de visualização
       modalImage.src = currentImages[currentImageIndex];
       imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
       imageModal.style.display = "flex";
@@ -733,15 +681,11 @@ function abrirModalEdicao(produtoId, produto) {
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += `<div class="photo-container">`;
     produto.fotos.forEach((foto, index) => {
-      const thumbnailUrl = getThumbnailUrl(foto);
-      const viewUrl = getViewUrl(foto);
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
-          <img src="${thumbnailUrl}" 
+          <img src="${foto}" 
                class="photo-thumbnail" 
-               data-original="${foto}"
-               data-view="${viewUrl}"
-               onclick="visualizarImagem('${viewUrl}', ${index}, ${JSON.stringify(produto.fotos.map(f => getViewUrl(f))).replace(/"/g, '&quot;')})"
+               onclick="visualizarImagem('${foto}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
                title="Clique para ampliar">
         </div>`;
     });
@@ -821,11 +765,11 @@ async function atualizarProduto() {
     
     if (!produtoDoc.empty) {
       const produtoAtual = produtoDoc.docs[0].data();
-      // Manter fotos existentes (já são URLs originais)
+      // Manter fotos existentes
       fotosAtualizadas = [...(produtoAtual.fotos || [])];
     }
     
-    // Adicionar novas fotos (já são URLs originais)
+    // Adicionar novas fotos
     fotosAtualizadas = [...fotosAtualizadas, ...editFotos];
     
     // Atualizar no Firestore
