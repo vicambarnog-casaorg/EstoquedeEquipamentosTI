@@ -37,6 +37,7 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
     <input id="password" type="password" placeholder="Senha">
     <br><br>
     <button id="loginBtn" class="btn">Entrar</button>
+    <p id="loginError" style="color:red;display:none"></p>
   </div>
 
   <!-- APP -->
@@ -57,16 +58,21 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
       <div id="preview" style="margin-top:10px"></div><br>
 
       <button id="saveProductBtn" class="btn">Salvar produto</button>
+      <p id="saveError" style="color:red;display:none"></p>
     </div>
 
     <div class="card">
       <h3>Produtos cadastrados</h3>
+      <div style="margin-bottom:10px">
+        <button id="refreshBtn" class="btn">Atualizar lista</button>
+      </div>
       <table>
         <thead>
           <tr><th>Nº</th><th>Equipamento</th><th>Setor</th><th>Fotos</th></tr>
         </thead>
         <tbody id="lista"></tbody>
       </table>
+      <p id="loadError" style="color:red;display:none"></p>
     </div>
   </div>
 </main>
@@ -81,7 +87,7 @@ UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, query } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAwCfiEB3JEUu_6rKR32C2E5whnb6-SgX0",
@@ -89,33 +95,47 @@ const firebaseConfig = {
   projectId: "sis-eetibkp"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Verificar se já existe uma instância do Firebase
+if (!window.firebaseInitialized) {
+  const app = initializeApp(firebaseConfig);
+  window.firebaseInitialized = true;
+}
+
+const auth = getAuth();
+const db = getFirestore();
+
+// Variáveis para gerenciar listeners
+let unsubscribeSnapshot = null;
+let isListening = false;
 
 // Uploadcare
 let fotos = [];
-const uploader = uploadcare.Widget("#uploadcare");
+let uploader = null;
 
-uploader.onUploadComplete(file=>{
-  const otimizada =
-    file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
-  fotos.push(otimizada);
-  const preview = document.getElementById("preview");
-  if (preview) {
-    preview.innerHTML += `<img src="${otimizada}">`;
+// Configurar Uploadcare após DOM carregar
+document.addEventListener('DOMContentLoaded', function() {
+  if (document.getElementById("uploadcare")) {
+    uploader = uploadcare.Widget("#uploadcare");
+    
+    uploader.onUploadComplete(file=>{
+      const otimizada =
+        file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
+      fotos.push(otimizada);
+      const preview = document.getElementById("preview");
+      if (preview) {
+        preview.innerHTML += `<img src="${otimizada}">`;
+      }
+    });
   }
 });
 
-// Elementos
-let loginBtn, saveProductBtn, logoutBtn;
-
-// Configurar eventos quando o DOM estiver carregado
+// Elementos e Event Listeners
 document.addEventListener('DOMContentLoaded', function() {
   // Botões
-  loginBtn = document.getElementById("loginBtn");
-  saveProductBtn = document.getElementById("saveProductBtn");
-  logoutBtn = document.getElementById("logoutBtn");
+  const loginBtn = document.getElementById("loginBtn");
+  const saveProductBtn = document.getElementById("saveProductBtn");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const refreshBtn = document.getElementById("refreshBtn");
   
   // Event Listeners
   if (loginBtn) {
@@ -127,7 +147,25 @@ document.addEventListener('DOMContentLoaded', function() {
   }
   
   if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => signOut(auth));
+    logoutBtn.addEventListener('click', logout);
+  }
+  
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', carregarProdutosManual);
+  }
+  
+  // Permitir Enter no login
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  
+  if (emailInput && passwordInput) {
+    emailInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') login();
+    });
+    
+    passwordInput.addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') login();
+    });
   }
 });
 
@@ -135,65 +173,158 @@ document.addEventListener('DOMContentLoaded', function() {
 async function login(){
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
+  const loginError = document.getElementById("loginError");
   
-  if (emailInput && passwordInput) {
-    try {
-      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
-    } catch (error) {
-      console.error("Erro no login:", error);
-      alert("Erro no login: " + error.message);
+  if (!emailInput || !passwordInput) return;
+  
+  const email = emailInput.value.trim();
+  const password = passwordInput.value;
+  
+  if (!email || !password) {
+    if (loginError) {
+      loginError.textContent = "Por favor, preencha email e senha";
+      loginError.style.display = "block";
+    }
+    return;
+  }
+  
+  try {
+    if (loginError) loginError.style.display = "none";
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (error) {
+    console.error("Erro no login:", error);
+    if (loginError) {
+      loginError.textContent = "Erro no login: " + error.message;
+      loginError.style.display = "block";
     }
   }
 }
 
-onAuthStateChanged(auth,user=>{
-  // Obter elementos dentro do callback
+async function logout(){
+  try {
+    // Parar listener antes de fazer logout
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+      unsubscribeSnapshot = null;
+      isListening = false;
+    }
+    
+    await signOut(auth);
+  } catch (error) {
+    console.error("Erro ao sair:", error);
+  }
+}
+
+onAuthStateChanged(auth, user => {
   const loginCard = document.getElementById("loginCard");
   const app = document.getElementById("app");
   const logoutBtn = document.getElementById("logoutBtn");
   const userEmail = document.getElementById("userEmail");
   
-  if(user){
-    if(loginCard) loginCard.classList.add("hidden");
-    if(app) app.classList.remove("hidden");
-    if(logoutBtn) logoutBtn.classList.remove("hidden");
-    if(userEmail) userEmail.innerText = user.email;
-    carregar();
-  }else{
-    if(loginCard) loginCard.classList.remove("hidden");
-    if(app) app.classList.add("hidden");
-    if(logoutBtn) logoutBtn.classList.add("hidden");
-    if(userEmail) userEmail.innerText = "";
+  if (user) {
+    if (loginCard) loginCard.classList.add("hidden");
+    if (app) app.classList.remove("hidden");
+    if (logoutBtn) logoutBtn.classList.remove("hidden");
+    if (userEmail) userEmail.innerText = user.email;
+    
+    // Carregar produtos uma vez (não usar listener contínuo)
+    carregarProdutosManual();
+  } else {
+    // Parar listener quando deslogar
+    if (unsubscribeSnapshot) {
+      unsubscribeSnapshot();
+      unsubscribeSnapshot = null;
+      isListening = false;
+    }
+    
+    if (loginCard) loginCard.classList.remove("hidden");
+    if (app) app.classList.add("hidden");
+    if (logoutBtn) logoutBtn.classList.add("hidden");
+    if (userEmail) userEmail.innerText = "";
+    
+    // Limpar lista
+    const lista = document.getElementById("lista");
+    if (lista) lista.innerHTML = "";
+    
+    const loadError = document.getElementById("loadError");
+    if (loadError) loadError.style.display = "none";
   }
 });
 
-// Firestore
+// Firestore - Carregamento manual (sem listener contínuo)
+async function carregarProdutosManual() {
+  const lista = document.getElementById("lista");
+  const loadError = document.getElementById("loadError");
+  
+  if (!lista) return;
+  
+  try {
+    if (loadError) loadError.style.display = "none";
+    
+    const querySnapshot = await getDocs(query(collection(db, "produtos")));
+    lista.innerHTML = "";
+    
+    if (querySnapshot.empty) {
+      lista.innerHTML = `<tr><td colspan="4" style="text-align:center">Nenhum produto cadastrado</td></tr>`;
+      return;
+    }
+    
+    querySnapshot.forEach(doc => {
+      const p = doc.data();
+      lista.innerHTML += `
+        <tr>
+          <td>${p.numero || ''}</td>
+          <td>${p.equipamento || ''}</td>
+          <td>${p.setor || ''}</td>
+          <td>${(p.fotos || []).map(f => `<img src="${f}" alt="Foto">`).join("")}</td>
+        </tr>`;
+    });
+  } catch (error) {
+    console.error("Erro ao carregar produtos:", error);
+    if (loadError) {
+      loadError.textContent = "Erro ao carregar produtos: " + error.message;
+      loadError.style.display = "block";
+    }
+  }
+}
+
+// Firestore - Salvar produto
 async function salvarProduto(){
   const numero = document.getElementById("numero");
   const equipamento = document.getElementById("equipamento");
   const setor = document.getElementById("setor");
   const preview = document.getElementById("preview");
+  const saveError = document.getElementById("saveError");
   
-  // Validação básica
+  // Validação
   if (!numero || !equipamento || !setor) return;
   
-  if (!numero.value.trim()) {
+  const numeroVal = numero.value.trim();
+  const equipamentoVal = equipamento.value.trim();
+  const setorVal = setor.value.trim();
+  
+  if (!numeroVal) {
     alert("Por favor, insira o número do patrimônio");
+    numero.focus();
     return;
   }
   
-  if (!equipamento.value.trim()) {
+  if (!equipamentoVal) {
     alert("Por favor, insira o equipamento");
+    equipamento.focus();
     return;
   }
   
   try {
-    await addDoc(collection(db,"produtos"),{
-      numero: numero.value.trim(),
-      equipamento: equipamento.value.trim(),
-      setor: setor.value.trim(),
-      fotos,
-      timestamp: new Date()
+    if (saveError) saveError.style.display = "none";
+    
+    await addDoc(collection(db, "produtos"), {
+      numero: numeroVal,
+      equipamento: equipamentoVal,
+      setor: setorVal,
+      fotos: fotos,
+      timestamp: new Date(),
+      criadoPor: auth.currentUser?.email || "desconhecido"
     });
     
     // Limpar campos
@@ -201,34 +332,21 @@ async function salvarProduto(){
     equipamento.value = "";
     setor.value = "";
     fotos = [];
-    if (preview) {
-      preview.innerHTML = "";
-    }
+    if (preview) preview.innerHTML = "";
+    if (uploader) uploader.value(null); // Limpar Uploadcare
     
-    alert("Produto salvo com sucesso!");
+    // Recarregar lista
+    await carregarProdutosManual();
+    
+    alert("✅ Produto salvo com sucesso!");
   } catch (error) {
     console.error("Erro ao salvar produto:", error);
-    alert("Erro ao salvar produto: " + error.message);
+    if (saveError) {
+      saveError.textContent = "Erro ao salvar: " + error.message;
+      saveError.style.display = "block";
+    }
+    alert("❌ Erro ao salvar produto: " + error.message);
   }
-}
-
-function carregar(){
-  onSnapshot(collection(db,"produtos"),snap=>{
-    const lista = document.getElementById("lista");
-    if (!lista) return;
-    
-    lista.innerHTML="";
-    snap.forEach(d=>{
-      const p=d.data();
-      lista.innerHTML+=`
-        <tr>
-          <td>${p.numero || ''}</td>
-          <td>${p.equipamento || ''}</td>
-          <td>${p.setor || ''}</td>
-          <td>${(p.fotos||[]).map(f=>`<img src="${f}">`).join("")}</td>
-        </tr>`;
-    });
-  });
 }
 </script>
 
