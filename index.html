@@ -158,11 +158,9 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
   </div>
 </main>
 
-<!-- Uploadcare - Carregamento SIMPLES -->
+<!-- Uploadcare -->
 <script>
-// Configuração global do Uploadcare
 UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
-UPLOADCARE_LOCALE = "pt";
 </script>
 <script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js" charset="utf-8"></script>
 
@@ -232,34 +230,37 @@ function setupUploadcareListeners() {
     try {
       const widget = uploadcare.Widget(uploadcareWidget);
       
-      widget.onUploadComplete(function(file) {
-        console.log('Upload completo (novo produto):', file);
-        
-        if (file && file.cdnUrl) {
-          // URL SIMPLES do Uploadcare - sem parâmetros extras
-          const imageUrl = file.cdnUrl;
-          console.log('URL da imagem:', imageUrl);
-          
-          // Salvar a URL
-          fotoUrls.push(imageUrl);
-          
-          // Mostrar preview
-          const preview = document.getElementById("preview");
-          if (preview) {
-            preview.innerHTML += `
-              <div class="photo-wrapper">
-                <img src="${imageUrl}" 
-                     class="photo-thumbnail" 
-                     onclick="visualizarImagem('${imageUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls).replace(/"/g, '&quot;')})"
-                     title="Clique para ampliar">
-              </div>`;
-          }
+      // Usar a API correta do Uploadcare
+      widget.onChange(function(file) {
+        if (file) {
+          file.done(function(fileInfo) {
+            console.log('Upload completo (novo produto):', fileInfo);
+            
+            if (fileInfo && fileInfo.cdnUrl) {
+              // URL do Uploadcare
+              const imageUrl = fileInfo.cdnUrl;
+              console.log('URL da imagem:', imageUrl);
+              
+              // Salvar a URL
+              fotoUrls.push(imageUrl);
+              
+              // Mostrar preview
+              const preview = document.getElementById("preview");
+              if (preview) {
+                preview.innerHTML += `
+                  <div class="photo-wrapper">
+                    <img src="${imageUrl}" 
+                         class="photo-thumbnail" 
+                         onclick="visualizarImagem('${imageUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls).replace(/"/g, '&quot;')})"
+                         title="Clique para ampliar">
+                  </div>`;
+              }
+            }
+          }).fail(function(error) {
+            console.error('Upload falhou:', error);
+            alert('Erro ao fazer upload da imagem: ' + (error.message || error));
+          });
         }
-      });
-      
-      widget.onUploadFail(function(err, fileInfo) {
-        console.error('Upload falhou:', err, fileInfo);
-        alert('Erro ao fazer upload da imagem: ' + (err.message || err));
       });
       
     } catch (error) {
@@ -273,27 +274,33 @@ function setupUploadcareListeners() {
     try {
       const editWidget = uploadcare.Widget(editUploadcareWidget);
       
-      editWidget.onUploadComplete(function(file) {
-        console.log('Upload completo (edição):', file);
-        
-        if (file && file.cdnUrl) {
-          // URL SIMPLES do Uploadcare
-          const imageUrl = file.cdnUrl;
-          
-          // Salvar a URL
-          editFotoUrls.push(imageUrl);
-          
-          // Mostrar preview
-          const editPreview = document.getElementById("editPreview");
-          if (editPreview) {
-            editPreview.innerHTML += `
-              <div class="photo-wrapper">
-                <img src="${imageUrl}" 
-                     class="photo-thumbnail" 
-                     onclick="visualizarImagem('${imageUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify([...editFotoUrls]).replace(/"/g, '&quot;')})"
-                     title="Clique para ampliar">
-              </div>`;
-          }
+      editWidget.onChange(function(file) {
+        if (file) {
+          file.done(function(fileInfo) {
+            console.log('Upload completo (edição):', fileInfo);
+            
+            if (fileInfo && fileInfo.cdnUrl) {
+              // URL do Uploadcare
+              const imageUrl = fileInfo.cdnUrl;
+              
+              // Salvar a URL
+              editFotoUrls.push(imageUrl);
+              
+              // Mostrar preview
+              const editPreview = document.getElementById("editPreview");
+              if (editPreview) {
+                editPreview.innerHTML += `
+                  <div class="photo-wrapper">
+                    <img src="${imageUrl}" 
+                         class="photo-thumbnail" 
+                         onclick="visualizarImagem('${imageUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify([...editFotoUrls]).replace(/"/g, '&quot;')})"
+                         title="Clique para ampliar">
+                  </div>`;
+              }
+            }
+          }).fail(function(error) {
+            console.error('Upload falhou (edição):', error);
+          });
         }
       });
       
@@ -551,18 +558,16 @@ function atualizarListaProdutos(querySnapshot) {
     if (fotoUrlsArray.length > 0) {
       fotosHTML = `<div class="photo-container">`;
       fotoUrlsArray.forEach((url, index) => {
-        // Usar URL diretamente, MAS adicionar parâmetros de visualização se necessário
+        // URL para visualização - testar diferentes formatos
         let displayUrl = url;
-        // Se a URL não tem parâmetros do Uploadcare, adiciona um básico
-        if (!url.includes('/-/')) {
-          displayUrl = url + '-/preview/300x300/';
-        }
+        // Tentar URL com preview primeiro
+        const previewUrl = url + (url.includes('?') ? '&' : '?') + 'preview';
         
         fotosHTML += `
           <div class="photo-wrapper">
             <img src="${displayUrl}" 
                  class="photo-thumbnail" 
-                 onerror="this.onerror=null; this.src='${url}';"
+                 onerror="this.onerror=null; this.src='${previewUrl}';"
                  onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(fotoUrlsArray).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
@@ -659,24 +664,27 @@ function visualizarImagem(src, index, fotoUrlsArray) {
     const imageModal = document.getElementById("imageModal");
     
     if (modalImage && imageCounter && imageModal) {
-      // Adicionar parâmetros do Uploadcare para visualização em tamanho maior
-      let viewUrl = currentImages[currentImageIndex];
-      if (!viewUrl.includes('/-/')) {
-        viewUrl = viewUrl + '-/preview/1200x1200/-/quality/light/';
-      } else {
-        // Se já tem parâmetros, substitui por parâmetros de visualização
-        const baseUrl = viewUrl.split('/-/')[0];
-        viewUrl = baseUrl + '-/preview/1200x1200/-/quality/light/';
-      }
+      // Testar diferentes formatos de URL
+      const testUrls = [
+        src + '?preview',  // Primeira tentativa: com parâmetro preview
+        src,               // Segunda tentativa: URL original
+        src.replace('ucarecd.net', 'ucarecdn.com'), // Terceira: trocar domínio
+      ];
+      
+      let currentTestIndex = 0;
       
       modalImage.onerror = function() {
-        console.error('Erro ao carregar imagem no modal, tentando URL original...');
-        // Tentar com URL original sem parâmetros
-        const originalUrl = currentImages[currentImageIndex].split('/-/')[0];
-        this.src = originalUrl;
+        currentTestIndex++;
+        if (currentTestIndex < testUrls.length) {
+          console.log('Tentando URL alternativa:', testUrls[currentTestIndex]);
+          this.src = testUrls[currentTestIndex];
+        } else {
+          console.error('Todas as URLs falharam');
+          this.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f0f0f0"/><text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="16" fill="#666">Imagem não disponível</text></svg>';
+        }
       };
       
-      modalImage.src = viewUrl;
+      modalImage.src = testUrls[0];
       imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
       imageModal.style.display = "flex";
       
@@ -717,16 +725,23 @@ function navImage(direction) {
   const imageCounter = document.getElementById("imageCounter");
   
   if (modalImage && imageCounter) {
-    // Adicionar parâmetros do Uploadcare
-    let viewUrl = currentImages[currentImageIndex];
-    if (!viewUrl.includes('/-/')) {
-      viewUrl = viewUrl + '-/preview/1200x1200/-/quality/light/';
-    } else {
-      const baseUrl = viewUrl.split('/-/')[0];
-      viewUrl = baseUrl + '-/preview/1200x1200/-/quality/light/';
-    }
+    const src = currentImages[currentImageIndex];
+    const testUrls = [
+      src + '?preview',
+      src,
+      src.replace('ucarecd.net', 'ucarecdn.com'),
+    ];
     
-    modalImage.src = viewUrl;
+    let currentTestIndex = 0;
+    
+    modalImage.onerror = function() {
+      currentTestIndex++;
+      if (currentTestIndex < testUrls.length) {
+        this.src = testUrls[currentTestIndex];
+      }
+    };
+    
+    modalImage.src = testUrls[0];
     imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
   }
 }
@@ -756,17 +771,11 @@ function abrirModalEdicao(produtoId, produto) {
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += `<div class="photo-container">`;
     produto.fotos.forEach((url, index) => {
-      // URL para preview
-      let previewUrl = url;
-      if (!url.includes('/-/')) {
-        previewUrl = url + '-/preview/300x300/';
-      }
-      
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
-          <img src="${previewUrl}" 
+          <img src="${url}" 
                class="photo-thumbnail" 
-               onerror="this.onerror=null; this.src='${url}';"
+               onerror="this.onerror=null; this.src='${url}?preview';"
                onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
                title="Clique para ampliar">
         </div>`;
