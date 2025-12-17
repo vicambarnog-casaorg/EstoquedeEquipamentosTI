@@ -35,7 +35,6 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .image-close:hover{background:rgba(255,255,255,0.4)}
 .photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .photo-wrapper{position:relative}
-.photo-wrapper:hover::after{content:"🔍 Clique para ampliar";position:absolute;bottom:-20px;left:0;right:0;font-size:10px;color:#666;text-align:center}
 </style>
 </head>
 <body>
@@ -157,13 +156,6 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
     </div>
   </div>
 </main>
-
-<!-- Uploadcare - VERSÃO SIMPLIFICADA -->
-<script>
-// Configuração mínima do Uploadcare
-window.UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
-</script>
-<script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js"></script>
 
 <!-- Firebase -->
 <script type="module">
@@ -464,11 +456,15 @@ function atualizarListaProdutos(querySnapshot) {
     if (fotoUrlsArray.length > 0) {
       fotosHTML = '<div class="photo-container">';
       fotoUrlsArray.forEach((url, index) => {
+        // Função auxiliar para escapar aspas simples
+        const escapedUrl = url.replace(/'/g, "\\'");
+        const escapedArray = JSON.stringify(fotoUrlsArray).replace(/'/g, "\\'");
+        
         fotosHTML += `
           <div class="photo-wrapper">
             <img src="${url}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(fotoUrlsArray)}')"
+                 onclick="visualizarImagem('${escapedUrl}', ${index}, '${escapedArray}')"
                  title="Clique para ampliar">
           </div>`;
       });
@@ -545,18 +541,24 @@ async function paginaAnterior() {
   }
 }
 
-// Funções de Visualização de Imagens
-function visualizarImagem(src, index, fotoUrlsArray) {
+// Funções de Visualização de Imagens - FORA do módulo para serem globais
+function visualizarImagem(src, index, fotoUrlsArrayString) {
+  console.log('visualizarImagem chamada com:', {src, index, fotoUrlsArrayString});
+  
   try {
     // Converter string de array para array real
-    if (typeof fotoUrlsArray === 'string') {
-      fotoUrlsArray = JSON.parse(fotoUrlsArray);
+    let fotoUrlsArray;
+    try {
+      fotoUrlsArray = JSON.parse(fotoUrlsArrayString);
+    } catch (e) {
+      console.error('Erro ao parsear JSON:', e);
+      fotoUrlsArray = [src];
     }
     
-    currentImages = Array.isArray(fotoUrlsArray) ? fotoUrlsArray : [src];
-    currentImageIndex = index || 0;
+    window.currentImages = Array.isArray(fotoUrlsArray) ? fotoUrlsArray : [src];
+    window.currentImageIndex = index || 0;
     
-    console.log('Visualizando imagem:', currentImages[currentImageIndex]);
+    console.log('Imagens para visualizar:', window.currentImages);
     
     // Atualizar imagem no modal
     const modalImage = document.getElementById("modalImage");
@@ -565,48 +567,46 @@ function visualizarImagem(src, index, fotoUrlsArray) {
     
     if (modalImage && imageCounter && imageModal) {
       modalImage.onerror = function() {
-        console.log('Imagem não carregada');
-        this.src = 'https://via.placeholder.com/600x400?text=Imagem+não+disponível';
+        console.log('Imagem não carregada, usando placeholder');
+        this.src = 'https://via.placeholder.com/600x400?text=Imagem+não+carregada';
       };
       
       modalImage.src = src;
-      imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
+      imageCounter.textContent = (window.currentImageIndex + 1) + ' / ' + window.currentImages.length;
       imageModal.style.display = "flex";
       
-      // Mostrar/ocultar botões de navegação se houver mais de uma imagem
-      document.querySelectorAll('.image-nav').forEach(nav => {
-        nav.style.display = currentImages.length > 1 ? 'flex' : 'none';
+      // Mostrar/ocultar botões de navegação
+      const navButtons = document.querySelectorAll('.image-nav');
+      navButtons.forEach(nav => {
+        nav.style.display = window.currentImages.length > 1 ? 'flex' : 'none';
       });
+    } else {
+      console.error('Elementos do modal não encontrados');
     }
   } catch (error) {
-    console.error("Erro ao visualizar imagem:", error);
-    // Fallback
-    const modalImage = document.getElementById("modalImage");
-    const imageModal = document.getElementById("imageModal");
-    if (modalImage && imageModal) {
-      modalImage.src = 'https://via.placeholder.com/600x400?text=Erro+ao+carregar';
-      imageModal.style.display = "flex";
-    }
+    console.error("Erro em visualizarImagem:", error);
   }
 }
 
 function navImage(direction) {
-  currentImageIndex += direction;
+  if (!window.currentImages || !window.currentImages.length) return;
+  
+  window.currentImageIndex += direction;
   
   // Circular navigation
-  if (currentImageIndex < 0) {
-    currentImageIndex = currentImages.length - 1;
-  } else if (currentImageIndex >= currentImages.length) {
-    currentImageIndex = 0;
+  if (window.currentImageIndex < 0) {
+    window.currentImageIndex = window.currentImages.length - 1;
+  } else if (window.currentImageIndex >= window.currentImages.length) {
+    window.currentImageIndex = 0;
   }
   
   const modalImage = document.getElementById("modalImage");
   const imageCounter = document.getElementById("imageCounter");
   
   if (modalImage && imageCounter) {
-    const src = currentImages[currentImageIndex];
+    const src = window.currentImages[window.currentImageIndex];
     modalImage.src = src;
-    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
+    imageCounter.textContent = (window.currentImageIndex + 1) + ' / ' + window.currentImages.length;
   }
 }
 
@@ -615,8 +615,8 @@ function fecharModalImagem() {
   if (imageModal) {
     imageModal.style.display = "none";
   }
-  currentImages = [];
-  currentImageIndex = 0;
+  window.currentImages = [];
+  window.currentImageIndex = 0;
 }
 
 // Funções de edição
@@ -635,11 +635,14 @@ function abrirModalEdicao(produtoId, produto) {
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += '<div class="photo-container">';
     produto.fotos.forEach((url, index) => {
+      const escapedUrl = url.replace(/'/g, "\\'");
+      const escapedArray = JSON.stringify(produto.fotos).replace(/'/g, "\\'");
+      
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
           <img src="${url}" 
                class="photo-thumbnail" 
-               onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(produto.fotos)}')"
+               onclick="visualizarImagem('${escapedUrl}', ${index}, '${escapedArray}')"
                title="Clique para ampliar">
         </div>`;
     });
@@ -664,7 +667,7 @@ function fecharModalEdicao() {
   document.getElementById("editError").style.display = "none";
 }
 
-// Editar produto
+// Editar produto - precisa ser global
 async function editarProduto(produtoId) {
   try {
     // Buscar dados do produto
@@ -751,7 +754,7 @@ async function atualizarProduto() {
   }
 }
 
-// Excluir produto
+// Excluir produto - precisa ser global
 async function confirmarExclusao(produtoId, numero) {
   if (confirm("Tem certeza que deseja excluir o patrimônio " + numero + "? Esta ação não pode ser desfeita.")) {
     try {
@@ -847,66 +850,86 @@ async function salvarProduto() {
   }
 }
 
-// Configurar Uploadcare widgets após carregamento
+// Carregar Uploadcare após a página carregar
 window.addEventListener('load', function() {
-  // Widget para novo produto
-  const uploadcareWidget = document.getElementById("uploadcare");
-  if (uploadcareWidget && window.uploadcare) {
-    const widget = uploadcare.Widget(uploadcareWidget);
-    
-    widget.onChange(function(file) {
-      if (file) {
-        file.done(function(fileInfo) {
-          if (fileInfo && fileInfo.cdnUrl) {
-            const imageUrl = fileInfo.cdnUrl;
-            fotoUrls.push(imageUrl);
-            
-            const preview = document.getElementById("preview");
-            if (preview) {
-              preview.innerHTML += `
-                <div class="photo-wrapper">
-                  <img src="${imageUrl}" 
-                       class="photo-thumbnail" 
-                       onclick="visualizarImagem('${imageUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls)}')"
-                       title="Clique para ampliar">
-                </div>`;
-            }
-          }
-        });
-      }
-    });
+  // Configurar chave do Uploadcare
+  if (typeof UPLOADCARE_PUBLIC_KEY === 'undefined') {
+    window.UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
   }
   
-  // Widget para edição
-  const editUploadcareWidget = document.getElementById("editUploadcare");
-  if (editUploadcareWidget && window.uploadcare) {
-    const editWidget = uploadcare.Widget(editUploadcareWidget);
+  // Carregar script do Uploadcare
+  const script = document.createElement('script');
+  script.src = 'https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js';
+  script.onload = function() {
+    console.log('Uploadcare carregado');
     
-    editWidget.onChange(function(file) {
-      if (file) {
-        file.done(function(fileInfo) {
-          if (fileInfo && fileInfo.cdnUrl) {
-            const imageUrl = fileInfo.cdnUrl;
-            editFotoUrls.push(imageUrl);
-            
-            const editPreview = document.getElementById("editPreview");
-            if (editPreview) {
-              editPreview.innerHTML += `
-                <div class="photo-wrapper">
-                  <img src="${imageUrl}" 
-                       class="photo-thumbnail" 
-                       onclick="visualizarImagem('${imageUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify(editFotoUrls)}')"
-                       title="Clique para ampliar">
-                </div>`;
+    // Widget para novo produto
+    const uploadcareWidget = document.getElementById("uploadcare");
+    if (uploadcareWidget && window.uploadcare) {
+      const widget = uploadcare.Widget(uploadcareWidget);
+      
+      widget.onChange(function(file) {
+        if (file) {
+          file.done(function(fileInfo) {
+            if (fileInfo && fileInfo.cdnUrl) {
+              const imageUrl = fileInfo.cdnUrl;
+              fotoUrls.push(imageUrl);
+              
+              const preview = document.getElementById("preview");
+              if (preview) {
+                const escapedUrl = imageUrl.replace(/'/g, "\\'");
+                const escapedArray = JSON.stringify(fotoUrls).replace(/'/g, "\\'");
+                
+                preview.innerHTML += `
+                  <div class="photo-wrapper">
+                    <img src="${imageUrl}" 
+                         class="photo-thumbnail" 
+                         onclick="visualizarImagem('${escapedUrl}', ${fotoUrls.length - 1}, '${escapedArray}')"
+                         title="Clique para ampliar">
+                  </div>`;
+              }
             }
-          }
-        });
-      }
-    });
-  }
+          });
+        }
+      });
+    }
+    
+    // Widget para edição
+    const editUploadcareWidget = document.getElementById("editUploadcare");
+    if (editUploadcareWidget && window.uploadcare) {
+      const editWidget = uploadcare.Widget(editUploadcareWidget);
+      
+      editWidget.onChange(function(file) {
+        if (file) {
+          file.done(function(fileInfo) {
+            if (fileInfo && fileInfo.cdnUrl) {
+              const imageUrl = fileInfo.cdnUrl;
+              editFotoUrls.push(imageUrl);
+              
+              const editPreview = document.getElementById("editPreview");
+              if (editPreview) {
+                const escapedUrl = imageUrl.replace(/'/g, "\\'");
+                const escapedArray = JSON.stringify([...editFotoUrls]).replace(/'/g, "\\'");
+                
+                editPreview.innerHTML += `
+                  <div class="photo-wrapper">
+                    <img src="${imageUrl}" 
+                         class="photo-thumbnail" 
+                         onclick="visualizarImagem('${escapedUrl}', ${editFotoUrls.length - 1}, '${escapedArray}')"
+                         title="Clique para ampliar">
+                  </div>`;
+              }
+            }
+          });
+        }
+      });
+    }
+  };
+  
+  document.head.appendChild(script);
 });
 
-// Tornar funções disponíveis globalmente
+// Exportar funções para o escopo global
 window.editarProduto = editarProduto;
 window.confirmarExclusao = confirmarExclusao;
 window.visualizarImagem = visualizarImagem;
