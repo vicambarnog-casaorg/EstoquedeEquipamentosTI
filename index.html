@@ -13,9 +13,16 @@ main{padding:20px}
 input{padding:8px;width:100%;box-sizing:border-box}
 button{padding:8px 12px;border:0;border-radius:6px;cursor:pointer}
 .btn{background:#2563eb;color:#fff}
+.btn-edit{background:#f59e0b;color:#fff}
+.btn-delete{background:#dc2626;color:#fff}
+.btn-cancel{background:#6b7280;color:#fff}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 img{max-width:70px;border-radius:6px;margin-right:4px}
+.photo-thumbnail{width:70px;height:70px;object-fit:cover;border-radius:6px;margin-right:4px}
+.action-buttons{display:flex;gap:5px}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center}
+.modal-content{background:#fff;padding:20px;border-radius:10px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto}
 </style>
 </head>
 <body>
@@ -42,6 +49,36 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
 
   <!-- APP -->
   <div id="app" class="hidden">
+    <!-- Modal para Edição -->
+    <div id="editModal" class="modal">
+      <div class="modal-content">
+        <h3>Editar Produto</h3>
+        <input id="editNumero" placeholder="Número do patrimônio"><br><br>
+        <input id="editEquipamento" placeholder="Equipamento"><br><br>
+        <input id="editSetor" placeholder="Setor"><br><br>
+        
+        <div id="editCurrentPhotos" style="margin-bottom:10px"></div>
+        
+        <div id="editPhotoUploadContainer">
+          <input type="hidden"
+            id="editUploadcare"
+            role="uploadcare-uploader"
+            data-images-only="true"
+            data-camera="true"
+            data-multiple="true">
+          <div id="editPreview" style="margin-top:10px"></div>
+        </div>
+        
+        <br>
+        <div style="display:flex;gap:10px;justify-content:flex-end">
+          <button id="cancelEditBtn" class="btn-cancel">Cancelar</button>
+          <button id="updateProductBtn" class="btn">Atualizar</button>
+        </div>
+        <p id="editError" style="color:red;display:none"></p>
+      </div>
+    </div>
+
+    <!-- Formulário Principal -->
     <div class="card">
       <h3>Novo Produto</h3>
       <input id="numero" placeholder="Número do patrimônio"><br><br>
@@ -61,18 +98,35 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
       <p id="saveError" style="color:red;display:none"></p>
     </div>
 
+    <!-- Lista de Produtos -->
     <div class="card">
-      <h3>Produtos cadastrados</h3>
-      <div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <h3 style="margin:0">Produtos cadastrados</h3>
         <button id="refreshBtn" class="btn">Atualizar lista</button>
       </div>
+      
+      <div style="margin-bottom:10px">
+        <input type="text" id="searchInput" placeholder="Buscar por número, equipamento ou setor..." style="width:100%">
+      </div>
+      
       <table>
         <thead>
-          <tr><th>Nº</th><th>Equipamento</th><th>Setor</th><th>Fotos</th></tr>
+          <tr>
+            <th>Nº</th>
+            <th>Equipamento</th>
+            <th>Setor</th>
+            <th>Fotos</th>
+            <th>Ações</th>
+          </tr>
         </thead>
         <tbody id="lista"></tbody>
       </table>
       <p id="loadError" style="color:red;display:none"></p>
+      <div id="pagination" style="margin-top:10px;text-align:center;display:none">
+        <button id="prevPage" class="btn-cancel">Anterior</button>
+        <span id="pageInfo" style="margin:0 10px">Página 1</span>
+        <button id="nextPage" class="btn-cancel">Próxima</button>
+      </div>
     </div>
   </div>
 </main>
@@ -87,7 +141,23 @@ UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, addDoc, getDocs, query } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  query, 
+  orderBy, 
+  deleteDoc, 
+  doc, 
+  updateDoc,
+  Timestamp,
+  where,
+  or,
+  limit,
+  startAfter,
+  getCountFromServer
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAwCfiEB3JEUu_6rKR32C2E5whnb6-SgX0",
@@ -104,55 +174,103 @@ if (!window.firebaseInitialized) {
 const auth = getAuth();
 const db = getFirestore();
 
-// Variáveis para gerenciar listeners
-let unsubscribeSnapshot = null;
-let isListening = false;
-
-// Uploadcare
+// Variáveis globais
 let fotos = [];
+let editFotos = [];
+let editUploader = null;
 let uploader = null;
+let lastVisible = null;
+let currentPage = 1;
+const itemsPerPage = 10;
+let currentProductId = null;
 
-// Configurar Uploadcare após DOM carregar
+// Configurar Uploadcare
 document.addEventListener('DOMContentLoaded', function() {
+  // Uploadcare para novo produto
   if (document.getElementById("uploadcare")) {
     uploader = uploadcare.Widget("#uploadcare");
     
     uploader.onUploadComplete(file=>{
-      const otimizada =
-        file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
+      const otimizada = file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
       fotos.push(otimizada);
       const preview = document.getElementById("preview");
       if (preview) {
-        preview.innerHTML += `<img src="${otimizada}">`;
+        preview.innerHTML += `<img src="${otimizada}" class="photo-thumbnail">`;
       }
     });
   }
+  
+  // Uploadcare para edição (inicializado depois)
+  if (document.getElementById("editUploadcare")) {
+    editUploader = uploadcare.Widget("#editUploadcare");
+    
+    editUploader.onUploadComplete(file=>{
+      const otimizada = file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
+      editFotos.push(otimizada);
+      const editPreview = document.getElementById("editPreview");
+      if (editPreview) {
+        editPreview.innerHTML += `<img src="${otimizada}" class="photo-thumbnail">`;
+      }
+    });
+  }
+  
+  // Configurar todos os event listeners
+  setupEventListeners();
 });
 
-// Elementos e Event Listeners
-document.addEventListener('DOMContentLoaded', function() {
-  // Botões
+function setupEventListeners() {
+  // Botões principais
   const loginBtn = document.getElementById("loginBtn");
   const saveProductBtn = document.getElementById("saveProductBtn");
   const logoutBtn = document.getElementById("logoutBtn");
   const refreshBtn = document.getElementById("refreshBtn");
+  const searchInput = document.getElementById("searchInput");
   
-  // Event Listeners
-  if (loginBtn) {
-    loginBtn.addEventListener('click', login);
+  // Botões do modal de edição
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
+  const updateProductBtn = document.getElementById("updateProductBtn");
+  const editModal = document.getElementById("editModal");
+  
+  // Botões de paginação
+  const prevPageBtn = document.getElementById("prevPage");
+  const nextPageBtn = document.getElementById("nextPage");
+  
+  // Event Listeners principais
+  if (loginBtn) loginBtn.addEventListener('click', login);
+  if (saveProductBtn) saveProductBtn.addEventListener('click', salvarProduto);
+  if (logoutBtn) logoutBtn.addEventListener('click', logout);
+  if (refreshBtn) refreshBtn.addEventListener('click', () => {
+    currentPage = 1;
+    lastVisible = null;
+    carregarProdutos();
+  });
+  
+  // Busca
+  if (searchInput) {
+    searchInput.addEventListener('input', function(e) {
+      const searchTerm = e.target.value.trim();
+      if (searchTerm.length >= 2 || searchTerm.length === 0) {
+        setTimeout(() => buscarProdutos(searchTerm), 300);
+      }
+    });
   }
   
-  if (saveProductBtn) {
-    saveProductBtn.addEventListener('click', salvarProduto);
+  // Modal de edição
+  if (cancelEditBtn) cancelEditBtn.addEventListener('click', fecharModalEdicao);
+  if (updateProductBtn) updateProductBtn.addEventListener('click', atualizarProduto);
+  
+  // Fechar modal ao clicar fora
+  if (editModal) {
+    editModal.addEventListener('click', function(e) {
+      if (e.target === editModal) {
+        fecharModalEdicao();
+      }
+    });
   }
   
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', logout);
-  }
-  
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', carregarProdutosManual);
-  }
+  // Paginação
+  if (prevPageBtn) prevPageBtn.addEventListener('click', paginaAnterior);
+  if (nextPageBtn) nextPageBtn.addEventListener('click', proximaPagina);
   
   // Permitir Enter no login
   const emailInput = document.getElementById("email");
@@ -167,10 +285,10 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e.key === 'Enter') login();
     });
   }
-});
+}
 
 // Auth
-async function login(){
+async function login() {
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
   const loginError = document.getElementById("loginError");
@@ -200,15 +318,8 @@ async function login(){
   }
 }
 
-async function logout(){
+async function logout() {
   try {
-    // Parar listener antes de fazer logout
-    if (unsubscribeSnapshot) {
-      unsubscribeSnapshot();
-      unsubscribeSnapshot = null;
-      isListening = false;
-    }
-    
     await signOut(auth);
   } catch (error) {
     console.error("Erro ao sair:", error);
@@ -227,16 +338,9 @@ onAuthStateChanged(auth, user => {
     if (logoutBtn) logoutBtn.classList.remove("hidden");
     if (userEmail) userEmail.innerText = user.email;
     
-    // Carregar produtos uma vez (não usar listener contínuo)
-    carregarProdutosManual();
+    // Carregar produtos
+    carregarProdutos();
   } else {
-    // Parar listener quando deslogar
-    if (unsubscribeSnapshot) {
-      unsubscribeSnapshot();
-      unsubscribeSnapshot = null;
-      isListening = false;
-    }
-    
     if (loginCard) loginCard.classList.remove("hidden");
     if (app) app.classList.add("hidden");
     if (logoutBtn) logoutBtn.classList.add("hidden");
@@ -248,37 +352,68 @@ onAuthStateChanged(auth, user => {
     
     const loadError = document.getElementById("loadError");
     if (loadError) loadError.style.display = "none";
+    
+    const pagination = document.getElementById("pagination");
+    if (pagination) pagination.style.display = "none";
   }
 });
 
-// Firestore - Carregamento manual (sem listener contínuo)
-async function carregarProdutosManual() {
+// Firestore - Carregar produtos com paginação
+async function carregarProdutos() {
   const lista = document.getElementById("lista");
   const loadError = document.getElementById("loadError");
+  const pagination = document.getElementById("pagination");
+  const pageInfo = document.getElementById("pageInfo");
   
   if (!lista) return;
   
   try {
     if (loadError) loadError.style.display = "none";
     
-    const querySnapshot = await getDocs(query(collection(db, "produtos")));
-    lista.innerHTML = "";
+    let produtosQuery;
     
-    if (querySnapshot.empty) {
-      lista.innerHTML = `<tr><td colspan="4" style="text-align:center">Nenhum produto cadastrado</td></tr>`;
-      return;
+    if (currentPage === 1) {
+      produtosQuery = query(
+        collection(db, "produtos"),
+        orderBy("timestamp", "desc"),
+        limit(itemsPerPage)
+      );
+      lastVisible = null;
+    } else {
+      produtosQuery = query(
+        collection(db, "produtos"),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisible),
+        limit(itemsPerPage)
+      );
     }
     
-    querySnapshot.forEach(doc => {
-      const p = doc.data();
-      lista.innerHTML += `
-        <tr>
-          <td>${p.numero || ''}</td>
-          <td>${p.equipamento || ''}</td>
-          <td>${p.setor || ''}</td>
-          <td>${(p.fotos || []).map(f => `<img src="${f}" alt="Foto">`).join("")}</td>
-        </tr>`;
-    });
+    const querySnapshot = await getDocs(produtosQuery);
+    
+    // Obter último documento visível para paginação
+    if (!querySnapshot.empty) {
+      lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+    }
+    
+    // Atualizar lista
+    atualizarListaProdutos(querySnapshot);
+    
+    // Configurar paginação
+    if (pagination && pageInfo) {
+      const totalCount = await getTotalCount();
+      const totalPages = Math.ceil(totalCount / itemsPerPage);
+      
+      if (totalPages > 1) {
+        pagination.style.display = "block";
+        pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+        
+        document.getElementById("prevPage").disabled = currentPage === 1;
+        document.getElementById("nextPage").disabled = currentPage === totalPages;
+      } else {
+        pagination.style.display = "none";
+      }
+    }
+    
   } catch (error) {
     console.error("Erro ao carregar produtos:", error);
     if (loadError) {
@@ -288,16 +423,265 @@ async function carregarProdutosManual() {
   }
 }
 
-// Firestore - Salvar produto
-async function salvarProduto(){
+async function getTotalCount() {
+  const countQuery = query(collection(db, "produtos"));
+  const snapshot = await getCountFromServer(countQuery);
+  return snapshot.data().count;
+}
+
+function atualizarListaProdutos(querySnapshot) {
+  const lista = document.getElementById("lista");
+  if (!lista) return;
+  
+  lista.innerHTML = "";
+  
+  if (querySnapshot.empty) {
+    lista.innerHTML = `<tr><td colspan="5" style="text-align:center">Nenhum produto cadastrado</td></tr>`;
+    return;
+  }
+  
+  querySnapshot.forEach(doc => {
+    const produto = doc.data();
+    const produtoId = doc.id;
+    
+    lista.innerHTML += `
+      <tr id="produto-${produtoId}">
+        <td>${produto.numero || ''}</td>
+        <td>${produto.equipamento || ''}</td>
+        <td>${produto.setor || ''}</td>
+        <td>${(produto.fotos || []).map(f => `<img src="${f}" class="photo-thumbnail" alt="Foto">`).join("")}</td>
+        <td>
+          <div class="action-buttons">
+            <button class="btn-edit" onclick="editarProduto('${produtoId}')">Editar</button>
+            <button class="btn-delete" onclick="confirmarExclusao('${produtoId}', '${produto.numero || ''}')">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+  });
+}
+
+// Buscar produtos
+async function buscarProdutos(termo) {
+  const lista = document.getElementById("lista");
+  const loadError = document.getElementById("loadError");
+  const pagination = document.getElementById("pagination");
+  
+  if (!lista) return;
+  
+  if (!termo || termo.trim() === "") {
+    carregarProdutos();
+    return;
+  }
+  
+  try {
+    if (loadError) loadError.style.display = "none";
+    if (pagination) pagination.style.display = "none";
+    
+    const produtosQuery = query(
+      collection(db, "produtos"),
+      or(
+        where("numero", ">=", termo),
+        where("numero", "<=", termo + "\uf8ff"),
+        where("equipamento", ">=", termo),
+        where("equipamento", "<=", termo + "\uf8ff"),
+        where("setor", ">=", termo),
+        where("setor", "<=", termo + "\uf8ff")
+      )
+    );
+    
+    const querySnapshot = await getDocs(produtosQuery);
+    atualizarListaProdutos(querySnapshot);
+    
+  } catch (error) {
+    console.error("Erro na busca:", error);
+    if (loadError) {
+      loadError.textContent = "Erro na busca: " + error.message;
+      loadError.style.display = "block";
+    }
+  }
+}
+
+// Paginação
+async function proximaPagina() {
+  currentPage++;
+  await carregarProdutos();
+}
+
+async function paginaAnterior() {
+  if (currentPage > 1) {
+    currentPage--;
+    await carregarProdutos();
+  }
+}
+
+// Funções de edição
+function abrirModalEdicao(produtoId, produto) {
+  currentProductId = produtoId;
+  
+  // Preencher campos do formulário
+  document.getElementById("editNumero").value = produto.numero || "";
+  document.getElementById("editEquipamento").value = produto.equipamento || "";
+  document.getElementById("editSetor").value = produto.setor || "";
+  
+  // Mostrar fotos atuais
+  const editCurrentPhotos = document.getElementById("editCurrentPhotos");
+  editCurrentPhotos.innerHTML = "<strong>Fotos atuais:</strong><br>";
+  
+  if (produto.fotos && produto.fotos.length > 0) {
+    produto.fotos.forEach(foto => {
+      editCurrentPhotos.innerHTML += `<img src="${foto}" class="photo-thumbnail">`;
+    });
+  } else {
+    editCurrentPhotos.innerHTML += "Nenhuma foto";
+  }
+  
+  // Limpar fotos novas
+  editFotos = [];
+  document.getElementById("editPreview").innerHTML = "";
+  if (editUploader) editUploader.value(null);
+  
+  // Mostrar modal
+  document.getElementById("editModal").style.display = "flex";
+}
+
+function fecharModalEdicao() {
+  document.getElementById("editModal").style.display = "none";
+  currentProductId = null;
+  editFotos = [];
+  document.getElementById("editPreview").innerHTML = "";
+  document.getElementById("editError").style.display = "none";
+}
+
+// Editar produto
+async function editarProduto(produtoId) {
+  try {
+    // Buscar dados do produto
+    const produtoRef = doc(db, "produtos", produtoId);
+    const produtoDoc = await getDocs(query(collection(db, "produtos"), where("__name__", "==", produtoId)));
+    
+    if (!produtoDoc.empty) {
+      const produto = produtoDoc.docs[0].data();
+      abrirModalEdicao(produtoId, produto);
+    }
+  } catch (error) {
+    console.error("Erro ao buscar produto para edição:", error);
+    alert("Erro ao carregar produto para edição: " + error.message);
+  }
+}
+
+// Atualizar produto
+async function atualizarProduto() {
+  const editNumero = document.getElementById("editNumero");
+  const editEquipamento = document.getElementById("editEquipamento");
+  const editSetor = document.getElementById("editSetor");
+  const editError = document.getElementById("editError");
+  
+  if (!currentProductId) return;
+  
+  const numeroVal = editNumero.value.trim();
+  const equipamentoVal = editEquipamento.value.trim();
+  const setorVal = editSetor.value.trim();
+  
+  // Validação
+  if (!numeroVal) {
+    alert("Por favor, insira o número do patrimônio");
+    editNumero.focus();
+    return;
+  }
+  
+  if (!equipamentoVal) {
+    alert("Por favor, insira o equipamento");
+    editEquipamento.focus();
+    return;
+  }
+  
+  try {
+    if (editError) editError.style.display = "none";
+    
+    // Primeiro, buscar o produto atual para preservar fotos existentes
+    const produtoRef = doc(db, "produtos", currentProductId);
+    const produtoDoc = await getDocs(query(collection(db, "produtos"), where("__name__", "==", currentProductId)));
+    
+    let fotosAtualizadas = [];
+    
+    if (!produtoDoc.empty) {
+      const produtoAtual = produtoDoc.docs[0].data();
+      // Manter fotos existentes
+      fotosAtualizadas = [...(produtoAtual.fotos || [])];
+    }
+    
+    // Adicionar novas fotos
+    fotosAtualizadas = [...fotosAtualizadas, ...editFotos];
+    
+    // Atualizar no Firestore
+    await updateDoc(produtoRef, {
+      numero: numeroVal,
+      equipamento: equipamentoVal,
+      setor: setorVal,
+      fotos: fotosAtualizadas,
+      atualizadoEm: Timestamp.now(),
+      atualizadoPor: auth.currentUser?.email || "desconhecido"
+    });
+    
+    // Fechar modal e recarregar lista
+    fecharModalEdicao();
+    await carregarProdutos();
+    
+    alert("✅ Produto atualizado com sucesso!");
+    
+  } catch (error) {
+    console.error("Erro ao atualizar produto:", error);
+    if (editError) {
+      editError.textContent = "Erro ao atualizar: " + error.message;
+      editError.style.display = "block";
+    }
+    alert("❌ Erro ao atualizar produto: " + error.message);
+  }
+}
+
+// Excluir produto
+async function confirmarExclusao(produtoId, numero) {
+  if (confirm(`Tem certeza que deseja excluir o patrimônio ${numero}? Esta ação não pode ser desfeita.`)) {
+    try {
+      await excluirProduto(produtoId);
+    } catch (error) {
+      console.error("Erro ao excluir:", error);
+      alert("Erro ao excluir produto: " + error.message);
+    }
+  }
+}
+
+async function excluirProduto(produtoId) {
+  try {
+    await deleteDoc(doc(db, "produtos", produtoId));
+    
+    // Remover da lista visualmente
+    const elemento = document.getElementById(`produto-${produtoId}`);
+    if (elemento) {
+      elemento.remove();
+    }
+    
+    // Recarregar lista se estiver vazia
+    const lista = document.getElementById("lista");
+    if (lista && lista.children.length === 1) { // Apenas a linha de "Nenhum produto"
+      carregarProdutos();
+    }
+    
+    alert("✅ Produto excluído com sucesso!");
+    
+  } catch (error) {
+    console.error("Erro ao excluir produto:", error);
+    throw error;
+  }
+}
+
+// Salvar novo produto
+async function salvarProduto() {
   const numero = document.getElementById("numero");
   const equipamento = document.getElementById("equipamento");
   const setor = document.getElementById("setor");
   const preview = document.getElementById("preview");
   const saveError = document.getElementById("saveError");
-  
-  // Validação
-  if (!numero || !equipamento || !setor) return;
   
   const numeroVal = numero.value.trim();
   const equipamentoVal = equipamento.value.trim();
@@ -323,7 +707,7 @@ async function salvarProduto(){
       equipamento: equipamentoVal,
       setor: setorVal,
       fotos: fotos,
-      timestamp: new Date(),
+      timestamp: Timestamp.now(),
       criadoPor: auth.currentUser?.email || "desconhecido"
     });
     
@@ -333,12 +717,15 @@ async function salvarProduto(){
     setor.value = "";
     fotos = [];
     if (preview) preview.innerHTML = "";
-    if (uploader) uploader.value(null); // Limpar Uploadcare
+    if (uploader) uploader.value(null);
     
-    // Recarregar lista
-    await carregarProdutosManual();
+    // Recarregar lista (voltar para primeira página)
+    currentPage = 1;
+    lastVisible = null;
+    await carregarProdutos();
     
     alert("✅ Produto salvo com sucesso!");
+    
   } catch (error) {
     console.error("Erro ao salvar produto:", error);
     if (saveError) {
@@ -348,6 +735,10 @@ async function salvarProduto(){
     alert("❌ Erro ao salvar produto: " + error.message);
   }
 }
+
+// Tornar funções disponíveis globalmente para os botões onclick
+window.editarProduto = editarProduto;
+window.confirmarExclusao = confirmarExclusao;
 </script>
 
 </body>
