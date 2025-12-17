@@ -36,6 +36,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .photo-wrapper{position:relative}
 .photo-wrapper:hover::after{content:"🔍 Clique para ampliar";position:absolute;bottom:-20px;left:0;right:0;font-size:10px;color:#666;text-align:center}
+.placeholder-img{background:linear-gradient(45deg,#f0f0f0,#e0e0e0);display:flex;align-items:center;justify-content:center;color:#999;font-size:12px}
 </style>
 </head>
 <body>
@@ -251,6 +252,7 @@ function setupUploadcareListeners() {
                   <div class="photo-wrapper">
                     <img src="${imageUrl}" 
                          class="photo-thumbnail" 
+                         onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"70\" height=\"70\" viewBox=\"0 0 70 70\"><rect width=\"70\" height=\"70\" fill=\"%23f0f0f0\" rx=\"6\"/><text x=\"35\" y=\"35\" text-anchor=\"middle\" font-family=\"Arial\" font-size=\"10\" fill=\"%23999\">Imagem</text></svg>';"
                          onclick="visualizarImagem('${imageUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls).replace(/"/g, '&quot;')})"
                          title="Clique para ampliar">
                   </div>`;
@@ -293,6 +295,7 @@ function setupUploadcareListeners() {
                   <div class="photo-wrapper">
                     <img src="${imageUrl}" 
                          class="photo-thumbnail" 
+                         onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"70\" height=\"70\" viewBox=\"0 0 70 70\"><rect width=\"70\" height=\"70\" fill=\"%23f0f0f0\" rx=\"6\"/><text x=\"35\" y=\"35\" text-anchor=\"middle\" font-family=\"Arial\" font-size=\"10\" fill=\"%23999\">Imagem</text></svg>';"
                          onclick="visualizarImagem('${imageUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify([...editFotoUrls]).replace(/"/g, '&quot;')})"
                          title="Clique para ampliar">
                   </div>`;
@@ -558,16 +561,14 @@ function atualizarListaProdutos(querySnapshot) {
     if (fotoUrlsArray.length > 0) {
       fotosHTML = `<div class="photo-container">`;
       fotoUrlsArray.forEach((url, index) => {
-        // URL para visualização - testar diferentes formatos
-        let displayUrl = url;
-        // Tentar URL com preview primeiro
-        const previewUrl = url + (url.includes('?') ? '&' : '?') + 'preview';
+        // SVG placeholder como fallback
+        const placeholderSVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" viewBox="0 0 70 70"><rect width="70" height="70" fill="#f0f0f0" rx="6"/><text x="35" y="35" text-anchor="middle" font-family="Arial" font-size="10" fill="#999">Foto</text></svg>';
         
         fotosHTML += `
           <div class="photo-wrapper">
-            <img src="${displayUrl}" 
+            <img src="${url}" 
                  class="photo-thumbnail" 
-                 onerror="this.onerror=null; this.src='${previewUrl}';"
+                 onerror="this.onerror=null; this.src='${placeholderSVG}';"
                  onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(fotoUrlsArray).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
@@ -664,27 +665,15 @@ function visualizarImagem(src, index, fotoUrlsArray) {
     const imageModal = document.getElementById("imageModal");
     
     if (modalImage && imageCounter && imageModal) {
-      // Testar diferentes formatos de URL
-      const testUrls = [
-        src + '?preview',  // Primeira tentativa: com parâmetro preview
-        src,               // Segunda tentativa: URL original
-        src.replace('ucarecd.net', 'ucarecdn.com'), // Terceira: trocar domínio
-      ];
-      
-      let currentTestIndex = 0;
+      // Placeholder SVG para quando a imagem falhar
+      const placeholderSVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#f0f0f0"/><text x="300" y="200" text-anchor="middle" font-family="Arial" font-size="20" fill="#666">Imagem não disponível</text><text x="300" y="230" text-anchor="middle" font-family="Arial" font-size="12" fill="#999">URL: ' + encodeURIComponent(src.substring(0, 50)) + '...</text></svg>';
       
       modalImage.onerror = function() {
-        currentTestIndex++;
-        if (currentTestIndex < testUrls.length) {
-          console.log('Tentando URL alternativa:', testUrls[currentTestIndex]);
-          this.src = testUrls[currentTestIndex];
-        } else {
-          console.error('Todas as URLs falharam');
-          this.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="#f0f0f0"/><text x="200" y="150" text-anchor="middle" font-family="Arial" font-size="16" fill="#666">Imagem não disponível</text></svg>';
-        }
+        console.log('Imagem não carregada, mostrando placeholder');
+        this.src = placeholderSVG;
       };
       
-      modalImage.src = testUrls[0];
+      modalImage.src = src;
       imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
       imageModal.style.display = "flex";
       
@@ -695,13 +684,11 @@ function visualizarImagem(src, index, fotoUrlsArray) {
     }
   } catch (error) {
     console.error("Erro ao visualizar imagem:", error);
-    // Fallback: mostrar apenas a imagem clicada
+    // Fallback: mostrar placeholder
     const modalImage = document.getElementById("modalImage");
     const imageModal = document.getElementById("imageModal");
     if (modalImage && imageModal) {
-      modalImage.src = src;
-      currentImages = [src];
-      currentImageIndex = 0;
+      modalImage.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#f0f0f0"/><text x="300" y="200" text-anchor="middle" font-family="Arial" font-size="20" fill="#666">Erro ao carregar imagem</text></svg>';
       imageModal.style.display = "flex";
       document.getElementById("imageCounter").textContent = "1 / 1";
       document.querySelectorAll('.image-nav').forEach(nav => {
@@ -726,22 +713,7 @@ function navImage(direction) {
   
   if (modalImage && imageCounter) {
     const src = currentImages[currentImageIndex];
-    const testUrls = [
-      src + '?preview',
-      src,
-      src.replace('ucarecd.net', 'ucarecdn.com'),
-    ];
-    
-    let currentTestIndex = 0;
-    
-    modalImage.onerror = function() {
-      currentTestIndex++;
-      if (currentTestIndex < testUrls.length) {
-        this.src = testUrls[currentTestIndex];
-      }
-    };
-    
-    modalImage.src = testUrls[0];
+    modalImage.src = src;
     imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
   }
 }
@@ -771,11 +743,13 @@ function abrirModalEdicao(produtoId, produto) {
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += `<div class="photo-container">`;
     produto.fotos.forEach((url, index) => {
+      const placeholderSVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" viewBox="0 0 70 70"><rect width="70" height="70" fill="#f0f0f0" rx="6"/><text x="35" y="35" text-anchor="middle" font-family="Arial" font-size="10" fill="#999">Foto</text></svg>';
+      
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
           <img src="${url}" 
                class="photo-thumbnail" 
-               onerror="this.onerror=null; this.src='${url}?preview';"
+               onerror="this.onerror=null; this.src='${placeholderSVG}';"
                onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
                title="Clique para ampliar">
         </div>`;
