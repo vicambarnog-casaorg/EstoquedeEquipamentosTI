@@ -109,12 +109,25 @@ auth.onAuthStateChanged(u=>{
 
 // Upload Cloudinary
 async function upload(file){
- const fd=new FormData();
- fd.append("file",file);
- fd.append("upload_preset","unsigned_patrimonio");
- fd.append("folder","patrimonio");
- const r=await fetch("https://api.cloudinary.com/v1_1/dwanrvvob/image/upload",{method:"POST",body:fd});
- return (await r.json()).secure_url;
+ try{
+  console.log("Tentando upload:",file.name,file.type,file.size);
+  const fd=new FormData();
+  fd.append("file",file);
+  fd.append("upload_preset","unsigned_patrimonio");
+  fd.append("folder","patrimonio");
+  const r=await fetch("https://api.cloudinary.com/v1_1/dwanrvvob/image/upload",{method:"POST",body:fd});
+  const json=await r.json();
+  console.log("Resposta Cloudinary:",json);
+  if(!r.ok){
+   alert("Erro no upload: "+(json.error?.message||"Erro desconhecido"));
+   return null;
+  }
+  return json.secure_url;
+ }catch(e){
+  console.error("Erro upload:",e);
+  alert("Erro ao fazer upload da imagem: "+e.message);
+  return null;
+ }
 }
 
 // Produto
@@ -150,12 +163,15 @@ saveProductBtn.onclick=async()=>{
  saveProductBtn.innerText="Salvando...";
  try{
   const fotos=[];
-  for(const f of staged)fotos.push(await upload(f));
+  for(const f of staged){
+   const url=await upload(f);
+   if(url)fotos.push(url);
+  }
   await db.collection("produtos").add({
    numero:numeroInput.value,
    equipamento:equipamentoInput.value,
    setor:setorInput.value,
-   fotos,
+   fotos:fotos,
    criado:firebase.firestore.FieldValue.serverTimestamp()
   });
   staged=[];stagedPreview.innerHTML="";
