@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Sistema de Patrimônio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#222;--card:#f2f2f2;--bd:#ccc;--pri:#2563eb}
+@media(prefers-color-scheme:dark){:root{--bg:#121212;--fg:#e5e5e5;--card:#1e1e1e;--bd:#333}}
+body{margin:0;font-family:Arial;background:var(--bg);color:var(--fg)}
+header{padding:12px 16px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between}
+main{max-width:1000px;margin:auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:12px;margin-bottom:16px}
+input,textarea,button{padding:8px;border-radius:6px;border:1px solid var(--bd)}
+button{cursor:pointer;background:var(--pri);color:#fff;border:none}
+button.ghost{background:none;color:var(--fg);border:1px solid var(--bd)}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px;border-bottom:1px solid var(--bd);text-align:left}
+.hidden{display:none}
+.thumb{width:70px;height:70px;object-fit:cover;border-radius:6px}
+.flex{display:flex;gap:8px;align-items:center}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center}
+.modal.show{display:flex}
+</style>
+</head>
+<body>
+
+<div id="loginBox" class="card" style="max-width:360px;margin:80px auto">
+<h3>Login</h3>
+<input id="emailLogin" placeholder="Email"><br>
+<input id="senhaLogin" type="password" placeholder="Senha"><br>
+<button id="btnLogin">Entrar</button>
+<div id="loginMsg"></div>
+</div>
+
+<div id="appLayout" class="hidden">
+<header>
+<strong>Patrimônio</strong>
+<button id="btnLogout" class="ghost">Sair</button>
+</header>
+
+<main>
+<div class="card">
+<h3>Novo Produto</h3>
+<input id="numeroInput" placeholder="Nº Patrimônio">
+<input id="equipamentoInput" placeholder="Equipamento">
+<input id="setorInput" placeholder="Setor">
+<div class="flex">
+<button id="openCameraBtn">Câmera</button>
+<input id="fileInput" type="file" accept="image/*" multiple class="hidden">
+<button id="selectFilesBtn" class="ghost">Arquivos</button>
+<button id="saveProductBtn">Salvar</button>
+</div>
+<div id="stagedPreview" class="flex"></div>
+</div>
+
+<div class="card">
+<h3>Produtos</h3>
+<table>
+<thead><tr><th>Nº</th><th>Equipamento</th><th>Setor</th><th>Foto</th><th>Ações</th></tr></thead>
+<tbody id="productTable"></tbody>
+</table>
+</div>
+
+<div id="detailCard" class="card hidden">
+<h3 id="detailTitle"></h3>
+<div id="detailPhotos" class="flex"></div>
+<h4>Histórico de Manutenção</h4>
+<div id="maintList"></div>
+<textarea id="maintText" placeholder="Descrição"></textarea><br>
+<button id="addMaintBtn">Adicionar manutenção</button>
+</div>
+</main>
+</div>
+
+<div id="cameraModal" class="modal">
+<div class="card">
+<video id="video" autoplay width="280"></video><br>
+<button id="captureBtn">Capturar</button>
+<button id="closeCamBtn" class="ghost">Fechar</button>
+</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+
+<script>
+// Firebase
+firebase.initializeApp({
+ apiKey:"AIzaSyAwCfiEB3JEUu_6rKR32C2E5whnb6-SgX0",
+ authDomain:"sis-eetibkp.firebaseapp.com",
+ projectId:"sis-eetibkp",
+ storageBucket:"sis-eetibkp.appspot.com",
+ messagingSenderId:"524123050144",
+ appId:"1:524123050144:web:79fba6107cf073118679c5"
+});
+const auth=firebase.auth(),db=firebase.firestore();
+
+// Auth
+btnLogin.onclick=()=>auth.signInWithEmailAndPassword(emailLogin.value,senhaLogin.value)
+.catch(e=>loginMsg.innerText=e.message);
+btnLogout.onclick=()=>auth.signOut();
+auth.onAuthStateChanged(u=>{
+ if(u){loginBox.classList.add("hidden");appLayout.classList.remove("hidden");load()}
+ else{loginBox.classList.remove("hidden");appLayout.classList.add("hidden")}
+});
+
+// Upload Cloudinary
+async function upload(file){
+ const fd=new FormData();
+ fd.append("file",file);
+ fd.append("upload_preset","unsigned_patrimonio");
+ fd.append("folder","patrimonio");
+ const r=await fetch("https://api.cloudinary.com/v1_1/dwanrvvob/image/upload",{method:"POST",body:fd});
+ return (await r.json()).secure_url;
+}
+
+// Produto
+let staged=[],current=null;
+
+selectFilesBtn.onclick=()=>fileInput.click();
+fileInput.onchange=e=>[...e.target.files].forEach(f=>preview(f));
+
+openCameraBtn.onclick=async()=>{
+ cameraModal.classList.add("show");
+ video.srcObject=await navigator.mediaDevices.getUserMedia({video:true});
+};
+closeCamBtn.onclick=()=>{cameraModal.classList.remove("show");video.srcObject.getTracks()[0].stop()};
+captureBtn.onclick=()=>{
+ const c=document.createElement("canvas");c.width=300;c.height=300;
+ c.getContext("2d").drawImage(video,0,0,300,300);
+ c.toBlob(b=>preview(b),"image/jpeg",0.6);
+ closeCamBtn.onclick();
+};
+
+function preview(f){
+ staged.push(f);
+ const i=document.createElement("img");i.src=URL.createObjectURL(f);i.className="thumb";
+ stagedPreview.appendChild(i);
+}
+
+saveProductBtn.onclick=async()=>{
+ const fotos=[];
+ for(const f of staged)fotos.push(await upload(f));
+ await db.collection("produtos").add({
+  numero:numeroInput.value,
+  equipamento:equipamentoInput.value,
+  setor:setorInput.value,
+  fotos,
+  criado:firebase.firestore.FieldValue.serverTimestamp()
+ });
+ staged=[];stagedPreview.innerHTML="";
+ numeroInput.value=equipamentoInput.value=setorInput.value="";
+ load();
+};
+
+async function load(){
+ productTable.innerHTML="";
+ const q=await db.collection("produtos").orderBy("criado","desc").get();
+ q.forEach(d=>{
+  const p=d.data();
+  const tr=document.createElement("tr");
+  tr.innerHTML=`<td>${p.numero}</td><td>${p.equipamento}</td><td>${p.setor}</td>
+  <td>${p.fotos?.[0]?'<img class=thumb src='+p.fotos[0]+'>':'—'}</td>
+  <td><button class=ghost onclick="openDetail('${d.id}')">Abrir</button></td>`;
+  productTable.appendChild(tr);
+ });
+}
+
+window.openDetail=async(id)=>{
+ current=id;detailCard.classList.remove("hidden");
+ const d=await db.collection("produtos").doc(id).get();
+ detailTitle.innerText=d.data().equipamento;
+ detailPhotos.innerHTML=d.data().fotos.map(f=>'<img class=thumb src='+f+'>').join("");
+ loadMaint();
+};
+
+async function loadMaint(){
+ maintList.innerHTML="";
+ const q=await db.collection("produtos").doc(current).collection("manutencoes").orderBy("data","desc").get();
+ q.forEach(d=>maintList.innerHTML+=`<div>- ${d.data().texto}</div>`);
+}
+
+addMaintBtn.onclick=async()=>{
+ await db.collection("produtos").doc(current).collection("manutencoes")
+ .add({texto:maintText.value,data:new Date()});
+ maintText.value="";loadMaint();
+};
+</script>
+</body>
+</html>
