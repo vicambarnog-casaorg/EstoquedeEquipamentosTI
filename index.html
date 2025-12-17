@@ -101,52 +101,88 @@ uploader.onUploadComplete(file=>{
   const otimizada =
     file.cdnUrl + "-/resize/800x800/-/quality/70/-/format/webp/";
   fotos.push(otimizada);
-  document.getElementById("preview").innerHTML += `<img src="${otimizada}">`;
+  const preview = document.getElementById("preview");
+  if (preview) {
+    preview.innerHTML += `<img src="${otimizada}">`;
+  }
 });
 
 // Auth
 window.login = async ()=>{
-  await signInWithEmailAndPassword(auth,email.value,password.value);
+  const emailInput = document.getElementById("email");
+  const passwordInput = document.getElementById("password");
+  
+  if (emailInput && passwordInput) {
+    await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+  }
 };
 
-logoutBtn.onclick = ()=>signOut(auth);
+// Configurar logout
+const logoutBtn = document.getElementById("logoutBtn");
+if (logoutBtn) {
+  logoutBtn.onclick = () => signOut(auth);
+}
 
 onAuthStateChanged(auth,user=>{
+  // Obter elementos dentro do callback
+  const loginCard = document.getElementById("loginCard");
+  const app = document.getElementById("app");
+  const logoutBtn = document.getElementById("logoutBtn");
+  const userEmail = document.getElementById("userEmail");
+  
   if(user){
-    loginCard.classList.add("hidden");
-    app.classList.remove("hidden");
-    logoutBtn.classList.remove("hidden");
-    userEmail.innerText=user.email;
+    if(loginCard) loginCard.classList.add("hidden");
+    if(app) app.classList.remove("hidden");
+    if(logoutBtn) logoutBtn.classList.remove("hidden");
+    if(userEmail) userEmail.innerText = user.email;
     carregar();
   }else{
-    loginCard.classList.remove("hidden");
-    app.classList.add("hidden");
-    logoutBtn.classList.add("hidden");
+    if(loginCard) loginCard.classList.remove("hidden");
+    if(app) app.classList.add("hidden");
+    if(logoutBtn) logoutBtn.classList.add("hidden");
+    if(userEmail) userEmail.innerText = "";
   }
 });
 
 // Firestore
 async function salvarProduto(){
-  await addDoc(collection(db,"produtos"),{
-    numero:numero.value,
-    equipamento:equipamento.value,
-    setor:setor.value,
-    fotos
-  });
-  fotos=[];
-  preview.innerHTML="";
+  const numero = document.getElementById("numero");
+  const equipamento = document.getElementById("equipamento");
+  const setor = document.getElementById("setor");
+  const preview = document.getElementById("preview");
+  
+  if (numero && equipamento && setor) {
+    await addDoc(collection(db,"produtos"),{
+      numero: numero.value,
+      equipamento: equipamento.value,
+      setor: setor.value,
+      fotos
+    });
+    
+    // Limpar campos
+    numero.value = "";
+    equipamento.value = "";
+    setor.value = "";
+    fotos = [];
+    if (preview) {
+      preview.innerHTML = "";
+    }
+  }
 }
 
 function carregar(){
   onSnapshot(collection(db,"produtos"),snap=>{
+    const lista = document.getElementById("lista");
+    if (!lista) return;
+    
     lista.innerHTML="";
     snap.forEach(d=>{
       const p=d.data();
       lista.innerHTML+=`
         <tr>
-          <td>${p.numero}</td>
-          <td>${p.equipamento}</td>
-          <td>${p.setor}</td>
+          <td>${p.numero || ''}</td>
+          <td>${p.equipamento || ''}</td>
+          <td>${p.setor || ''}</td>
           <td>${(p.fotos||[]).map(f=>`<img src="${f}">`).join("")}</td>
         </tr>`;
     });
