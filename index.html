@@ -14,6 +14,7 @@ main{max-width:1000px;margin:auto;padding:16px}
 input,textarea,button{padding:8px;border-radius:6px;border:1px solid var(--bd)}
 button{cursor:pointer;background:var(--pri);color:#fff;border:none}
 button.ghost{background:none;color:var(--fg);border:1px solid var(--bd)}
+button:disabled{opacity:0.5;cursor:not-allowed}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;border-bottom:1px solid var(--bd);text-align:left}
 .hidden{display:none}
@@ -141,18 +142,33 @@ function preview(f){
 }
 
 saveProductBtn.onclick=async()=>{
- const fotos=[];
- for(const f of staged)fotos.push(await upload(f));
- await db.collection("produtos").add({
-  numero:numeroInput.value,
-  equipamento:equipamentoInput.value,
-  setor:setorInput.value,
-  fotos,
-  criado:firebase.firestore.FieldValue.serverTimestamp()
- });
- staged=[];stagedPreview.innerHTML="";
- numeroInput.value=equipamentoInput.value=setorInput.value="";
- load();
+ if(!numeroInput.value || !equipamentoInput.value || !setorInput.value){
+  alert("Preencha todos os campos!");
+  return;
+ }
+ saveProductBtn.disabled=true;
+ saveProductBtn.innerText="Salvando...";
+ try{
+  const fotos=[];
+  for(const f of staged)fotos.push(await upload(f));
+  await db.collection("produtos").add({
+   numero:numeroInput.value,
+   equipamento:equipamentoInput.value,
+   setor:setorInput.value,
+   fotos,
+   criado:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  staged=[];stagedPreview.innerHTML="";
+  numeroInput.value=equipamentoInput.value=setorInput.value="";
+  alert("Produto salvo com sucesso!");
+  load();
+ }catch(e){
+  alert("Erro ao salvar: "+e.message);
+  console.error(e);
+ }finally{
+  saveProductBtn.disabled=false;
+  saveProductBtn.innerText="Salvar";
+ }
 };
 
 async function load(){
