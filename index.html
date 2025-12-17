@@ -36,7 +36,6 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .photo-wrapper{position:relative}
 .photo-wrapper:hover::after{content:"🔍 Clique para ampliar";position:absolute;bottom:-20px;left:0;right:0;font-size:10px;color:#666;text-align:center}
-.placeholder-img{background:linear-gradient(45deg,#f0f0f0,#e0e0e0);display:flex;align-items:center;justify-content:center;color:#999;font-size:12px}
 </style>
 </head>
 <body>
@@ -159,11 +158,12 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
   </div>
 </main>
 
-<!-- Uploadcare -->
+<!-- Uploadcare - VERSÃO SIMPLIFICADA -->
 <script>
-UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
+// Configuração mínima do Uploadcare
+window.UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
 </script>
-<script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js" charset="utf-8"></script>
+<script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js"></script>
 
 <!-- Firebase -->
 <script type="module">
@@ -193,14 +193,10 @@ const firebaseConfig = {
   projectId: "sis-eetibkp"
 };
 
-// Verificar se já existe uma instância do Firebase
-if (!window.firebaseInitialized) {
-  const app = initializeApp(firebaseConfig);
-  window.firebaseInitialized = true;
-}
-
-const auth = getAuth();
-const db = getFirestore();
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 // Variáveis globais
 let fotoUrls = [];
@@ -214,104 +210,11 @@ let currentImages = [];
 
 // Configurar eventos quando o DOM carregar
 document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM carregado, configurando Uploadcare...');
+  console.log('DOM carregado');
   
-  // Configurar listeners para os widgets do Uploadcare
-  setupUploadcareListeners();
-  
-  // Configurar todos os outros event listeners
+  // Configurar todos os event listeners
   setupEventListeners();
 });
-
-// Configurar listeners para o Uploadcare
-function setupUploadcareListeners() {
-  // Widget para novo produto
-  const uploadcareWidget = document.getElementById("uploadcare");
-  if (uploadcareWidget && window.uploadcare) {
-    try {
-      const widget = uploadcare.Widget(uploadcareWidget);
-      
-      // Usar a API correta do Uploadcare
-      widget.onChange(function(file) {
-        if (file) {
-          file.done(function(fileInfo) {
-            console.log('Upload completo (novo produto):', fileInfo);
-            
-            if (fileInfo && fileInfo.cdnUrl) {
-              // URL do Uploadcare
-              const imageUrl = fileInfo.cdnUrl;
-              console.log('URL da imagem:', imageUrl);
-              
-              // Salvar a URL
-              fotoUrls.push(imageUrl);
-              
-              // Mostrar preview
-              const preview = document.getElementById("preview");
-              if (preview) {
-                preview.innerHTML += `
-                  <div class="photo-wrapper">
-                    <img src="${imageUrl}" 
-                         class="photo-thumbnail" 
-                         onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"70\" height=\"70\" viewBox=\"0 0 70 70\"><rect width=\"70\" height=\"70\" fill=\"%23f0f0f0\" rx=\"6\"/><text x=\"35\" y=\"35\" text-anchor=\"middle\" font-family=\"Arial\" font-size=\"10\" fill=\"%23999\">Imagem</text></svg>';"
-                         onclick="visualizarImagem('${imageUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls).replace(/"/g, '&quot;')})"
-                         title="Clique para ampliar">
-                  </div>`;
-              }
-            }
-          }).fail(function(error) {
-            console.error('Upload falhou:', error);
-            alert('Erro ao fazer upload da imagem: ' + (error.message || error));
-          });
-        }
-      });
-      
-    } catch (error) {
-      console.error('Erro ao configurar widget Uploadcare:', error);
-    }
-  }
-  
-  // Widget para edição
-  const editUploadcareWidget = document.getElementById("editUploadcare");
-  if (editUploadcareWidget && window.uploadcare) {
-    try {
-      const editWidget = uploadcare.Widget(editUploadcareWidget);
-      
-      editWidget.onChange(function(file) {
-        if (file) {
-          file.done(function(fileInfo) {
-            console.log('Upload completo (edição):', fileInfo);
-            
-            if (fileInfo && fileInfo.cdnUrl) {
-              // URL do Uploadcare
-              const imageUrl = fileInfo.cdnUrl;
-              
-              // Salvar a URL
-              editFotoUrls.push(imageUrl);
-              
-              // Mostrar preview
-              const editPreview = document.getElementById("editPreview");
-              if (editPreview) {
-                editPreview.innerHTML += `
-                  <div class="photo-wrapper">
-                    <img src="${imageUrl}" 
-                         class="photo-thumbnail" 
-                         onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"70\" height=\"70\" viewBox=\"0 0 70 70\"><rect width=\"70\" height=\"70\" fill=\"%23f0f0f0\" rx=\"6\"/><text x=\"35\" y=\"35\" text-anchor=\"middle\" font-family=\"Arial\" font-size=\"10\" fill=\"%23999\">Imagem</text></svg>';"
-                         onclick="visualizarImagem('${imageUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify([...editFotoUrls]).replace(/"/g, '&quot;')})"
-                         title="Clique para ampliar">
-                  </div>`;
-              }
-            }
-          }).fail(function(error) {
-            console.error('Upload falhou (edição):', error);
-          });
-        }
-      });
-      
-    } catch (error) {
-      console.error('Erro ao configurar widget Uploadcare de edição:', error);
-    }
-  }
-}
 
 function setupEventListeners() {
   // Botões principais
@@ -547,7 +450,7 @@ function atualizarListaProdutos(querySnapshot) {
   lista.innerHTML = "";
   
   if (querySnapshot.empty) {
-    lista.innerHTML = `<tr><td colspan="5" style="text-align:center">Nenhum produto cadastrado</td></tr>`;
+    lista.innerHTML = '<tr><td colspan="5" style="text-align:center">Nenhum produto cadastrado</td></tr>';
     return;
   }
   
@@ -559,21 +462,17 @@ function atualizarListaProdutos(querySnapshot) {
     // Gerar HTML para as fotos
     let fotosHTML = "Nenhuma foto";
     if (fotoUrlsArray.length > 0) {
-      fotosHTML = `<div class="photo-container">`;
+      fotosHTML = '<div class="photo-container">';
       fotoUrlsArray.forEach((url, index) => {
-        // SVG placeholder como fallback
-        const placeholderSVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" viewBox="0 0 70 70"><rect width="70" height="70" fill="#f0f0f0" rx="6"/><text x="35" y="35" text-anchor="middle" font-family="Arial" font-size="10" fill="#999">Foto</text></svg>';
-        
         fotosHTML += `
           <div class="photo-wrapper">
             <img src="${url}" 
                  class="photo-thumbnail" 
-                 onerror="this.onerror=null; this.src='${placeholderSVG}';"
-                 onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(fotoUrlsArray).replace(/"/g, '&quot;')})"
+                 onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(fotoUrlsArray)}')"
                  title="Clique para ampliar">
           </div>`;
       });
-      fotosHTML += `</div>`;
+      fotosHTML += '</div>';
     }
     
     lista.innerHTML += `
@@ -651,7 +550,7 @@ function visualizarImagem(src, index, fotoUrlsArray) {
   try {
     // Converter string de array para array real
     if (typeof fotoUrlsArray === 'string') {
-      fotoUrlsArray = JSON.parse(fotoUrlsArray.replace(/&quot;/g, '"'));
+      fotoUrlsArray = JSON.parse(fotoUrlsArray);
     }
     
     currentImages = Array.isArray(fotoUrlsArray) ? fotoUrlsArray : [src];
@@ -665,16 +564,13 @@ function visualizarImagem(src, index, fotoUrlsArray) {
     const imageModal = document.getElementById("imageModal");
     
     if (modalImage && imageCounter && imageModal) {
-      // Placeholder SVG para quando a imagem falhar
-      const placeholderSVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#f0f0f0"/><text x="300" y="200" text-anchor="middle" font-family="Arial" font-size="20" fill="#666">Imagem não disponível</text><text x="300" y="230" text-anchor="middle" font-family="Arial" font-size="12" fill="#999">URL: ' + encodeURIComponent(src.substring(0, 50)) + '...</text></svg>';
-      
       modalImage.onerror = function() {
-        console.log('Imagem não carregada, mostrando placeholder');
-        this.src = placeholderSVG;
+        console.log('Imagem não carregada');
+        this.src = 'https://via.placeholder.com/600x400?text=Imagem+não+disponível';
       };
       
       modalImage.src = src;
-      imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
+      imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
       imageModal.style.display = "flex";
       
       // Mostrar/ocultar botões de navegação se houver mais de uma imagem
@@ -684,16 +580,12 @@ function visualizarImagem(src, index, fotoUrlsArray) {
     }
   } catch (error) {
     console.error("Erro ao visualizar imagem:", error);
-    // Fallback: mostrar placeholder
+    // Fallback
     const modalImage = document.getElementById("modalImage");
     const imageModal = document.getElementById("imageModal");
     if (modalImage && imageModal) {
-      modalImage.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><rect width="600" height="400" fill="#f0f0f0"/><text x="300" y="200" text-anchor="middle" font-family="Arial" font-size="20" fill="#666">Erro ao carregar imagem</text></svg>';
+      modalImage.src = 'https://via.placeholder.com/600x400?text=Erro+ao+carregar';
       imageModal.style.display = "flex";
-      document.getElementById("imageCounter").textContent = "1 / 1";
-      document.querySelectorAll('.image-nav').forEach(nav => {
-        nav.style.display = 'none';
-      });
     }
   }
 }
@@ -714,7 +606,7 @@ function navImage(direction) {
   if (modalImage && imageCounter) {
     const src = currentImages[currentImageIndex];
     modalImage.src = src;
-    imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
+    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
   }
 }
 
@@ -741,20 +633,17 @@ function abrirModalEdicao(produtoId, produto) {
   editCurrentPhotos.innerHTML = "<strong>Fotos atuais:</strong><br>";
   
   if (produto.fotos && produto.fotos.length > 0) {
-    editCurrentPhotos.innerHTML += `<div class="photo-container">`;
+    editCurrentPhotos.innerHTML += '<div class="photo-container">';
     produto.fotos.forEach((url, index) => {
-      const placeholderSVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="70" height="70" viewBox="0 0 70 70"><rect width="70" height="70" fill="#f0f0f0" rx="6"/><text x="35" y="35" text-anchor="middle" font-family="Arial" font-size="10" fill="#999">Foto</text></svg>';
-      
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
           <img src="${url}" 
                class="photo-thumbnail" 
-               onerror="this.onerror=null; this.src='${placeholderSVG}';"
-               onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
+               onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(produto.fotos)}')"
                title="Clique para ampliar">
         </div>`;
     });
-    editCurrentPhotos.innerHTML += `</div>`;
+    editCurrentPhotos.innerHTML += '</div>';
   } else {
     editCurrentPhotos.innerHTML += "Nenhuma foto";
   }
@@ -864,7 +753,7 @@ async function atualizarProduto() {
 
 // Excluir produto
 async function confirmarExclusao(produtoId, numero) {
-  if (confirm(`Tem certeza que deseja excluir o patrimônio ${numero}? Esta ação não pode ser desfeita.`)) {
+  if (confirm("Tem certeza que deseja excluir o patrimônio " + numero + "? Esta ação não pode ser desfeita.")) {
     try {
       await excluirProduto(produtoId);
     } catch (error) {
@@ -879,14 +768,14 @@ async function excluirProduto(produtoId) {
     await deleteDoc(doc(db, "produtos", produtoId));
     
     // Remover da lista visualmente
-    const elemento = document.getElementById(`produto-${produtoId}`);
+    const elemento = document.getElementById("produto-" + produtoId);
     if (elemento) {
       elemento.remove();
     }
     
     // Recarregar lista se estiver vazia
     const lista = document.getElementById("lista");
-    if (lista && lista.children.length === 1) { // Apenas a linha de "Nenhum produto"
+    if (lista && lista.children.length === 1) {
       carregarProdutos();
     }
     
@@ -941,7 +830,7 @@ async function salvarProduto() {
     fotoUrls = [];
     if (preview) preview.innerHTML = "";
     
-    // Recarregar lista (voltar para primeira página)
+    // Recarregar lista
     currentPage = 1;
     lastVisible = null;
     await carregarProdutos();
@@ -958,7 +847,66 @@ async function salvarProduto() {
   }
 }
 
-// Tornar funções disponíveis globalmente para os botões onclick
+// Configurar Uploadcare widgets após carregamento
+window.addEventListener('load', function() {
+  // Widget para novo produto
+  const uploadcareWidget = document.getElementById("uploadcare");
+  if (uploadcareWidget && window.uploadcare) {
+    const widget = uploadcare.Widget(uploadcareWidget);
+    
+    widget.onChange(function(file) {
+      if (file) {
+        file.done(function(fileInfo) {
+          if (fileInfo && fileInfo.cdnUrl) {
+            const imageUrl = fileInfo.cdnUrl;
+            fotoUrls.push(imageUrl);
+            
+            const preview = document.getElementById("preview");
+            if (preview) {
+              preview.innerHTML += `
+                <div class="photo-wrapper">
+                  <img src="${imageUrl}" 
+                       class="photo-thumbnail" 
+                       onclick="visualizarImagem('${imageUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls)}')"
+                       title="Clique para ampliar">
+                </div>`;
+            }
+          }
+        });
+      }
+    });
+  }
+  
+  // Widget para edição
+  const editUploadcareWidget = document.getElementById("editUploadcare");
+  if (editUploadcareWidget && window.uploadcare) {
+    const editWidget = uploadcare.Widget(editUploadcareWidget);
+    
+    editWidget.onChange(function(file) {
+      if (file) {
+        file.done(function(fileInfo) {
+          if (fileInfo && fileInfo.cdnUrl) {
+            const imageUrl = fileInfo.cdnUrl;
+            editFotoUrls.push(imageUrl);
+            
+            const editPreview = document.getElementById("editPreview");
+            if (editPreview) {
+              editPreview.innerHTML += `
+                <div class="photo-wrapper">
+                  <img src="${imageUrl}" 
+                       class="photo-thumbnail" 
+                       onclick="visualizarImagem('${imageUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify(editFotoUrls)}')"
+                       title="Clique para ampliar">
+                </div>`;
+            }
+          }
+        });
+      }
+    });
+  }
+});
+
+// Tornar funções disponíveis globalmente
 window.editarProduto = editarProduto;
 window.confirmarExclusao = confirmarExclusao;
 window.visualizarImagem = visualizarImagem;
