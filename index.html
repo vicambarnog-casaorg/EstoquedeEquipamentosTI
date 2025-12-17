@@ -36,7 +36,6 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .photo-wrapper{position:relative}
 .photo-wrapper:hover::after{content:"🔍 Clique para ampliar";position:absolute;bottom:-20px;left:0;right:0;font-size:10px;color:#666;text-align:center}
-.debug-info{font-size:12px;color:#666;background:#f0f0f0;padding:5px;border-radius:3px;margin-top:5px;font-family:monospace;word-break:break-all}
 </style>
 </head>
 <body>
@@ -75,6 +74,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
         <input type="hidden"
           id="editUploadcare"
           role="uploadcare-uploader"
+          data-public-key="a4d223bddcdb3028ec83"
           data-images-only="true"
           data-camera="true"
           data-multiple="true">
@@ -113,13 +113,12 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       <input type="hidden"
         id="uploadcare"
         role="uploadcare-uploader"
+        data-public-key="a4d223bddcdb3028ec83"
         data-images-only="true"
         data-camera="true"
-        data-multiple="true"
-        data-public-key="a4d223bddcdb3028ec83">
+        data-multiple="true">
 
       <div id="preview" style="margin-top:10px" class="photo-container"></div>
-      <div id="debugPreview" class="debug-info"></div>
       <br>
 
       <button id="saveProductBtn" class="btn">Salvar produto</button>
@@ -149,7 +148,6 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
         </thead>
         <tbody id="lista"></tbody>
       </table>
-      <div id="debugInfo" class="debug-info"></div>
       <p id="loadError" style="color:red;display:none"></p>
       <div id="pagination" style="margin-top:10px;text-align:center;display:none">
         <button id="prevPage" class="btn-cancel">Anterior</button>
@@ -160,7 +158,13 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
   </div>
 </main>
 
-<!-- Uploadcare já incluído no script abaixo -->
+<!-- Uploadcare - Carregamento SIMPLES -->
+<script>
+// Configuração global do Uploadcare
+UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
+UPLOADCARE_LOCALE = "pt";
+</script>
+<script src="https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js" charset="utf-8"></script>
 
 <!-- Firebase -->
 <script type="module">
@@ -202,8 +206,6 @@ const db = getFirestore();
 // Variáveis globais
 let fotoUrls = [];
 let editFotoUrls = [];
-let editUploader = null;
-let uploader = null;
 let lastVisible = null;
 let currentPage = 1;
 const itemsPerPage = 10;
@@ -211,128 +213,92 @@ let currentProductId = null;
 let currentImageIndex = 0;
 let currentImages = [];
 
-// Configurar Uploadcare quando o DOM carregar
-document.addEventListener('DOMContentLoaded', async function() {
-  // Carregar Uploadcare dinamicamente
-  await loadUploadcare();
+// Configurar eventos quando o DOM carregar
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM carregado, configurando Uploadcare...');
   
-  // Configurar todos os event listeners
+  // Configurar listeners para os widgets do Uploadcare
+  setupUploadcareListeners();
+  
+  // Configurar todos os outros event listeners
   setupEventListeners();
 });
 
-async function loadUploadcare() {
-  // Configurar chave pública globalmente
-  window.UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
-  
-  // Carregar script do Uploadcare
-  return new Promise((resolve, reject) => {
-    if (window.uploadcare) {
-      initUploadcareWidgets();
-      resolve();
-      return;
-    }
-    
-    const script = document.createElement('script');
-    script.src = 'https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js';
-    script.onload = () => {
-      initUploadcareWidgets();
-      resolve();
-    };
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
-function initUploadcareWidgets() {
-  console.log('Inicializando Uploadcare widgets...');
-  
+// Configurar listeners para o Uploadcare
+function setupUploadcareListeners() {
   // Widget para novo produto
-  if (document.getElementById("uploadcare") && window.uploadcare) {
+  const uploadcareWidget = document.getElementById("uploadcare");
+  if (uploadcareWidget && window.uploadcare) {
     try {
-      uploader = uploadcare.Widget("#uploadcare");
+      const widget = uploadcare.Widget(uploadcareWidget);
       
-      uploader.onUploadComplete(file => {
-        console.log('Upload completo:', file);
+      widget.onUploadComplete(function(file) {
+        console.log('Upload completo (novo produto):', file);
         
-        // Usar a URL original do Uploadcare
-        const originalUrl = file.originalUrl || file.cdnUrl;
-        console.log('URL original:', originalUrl);
-        
-        // Garantir que a URL não tenha parâmetros duplicados
-        let cleanUrl = originalUrl;
-        // Se já tiver parâmetros do Uploadcare, garantir que seja uma URL válida
-        if (cleanUrl.includes('/-/')) {
-          // Já é uma URL do Uploadcare com parâmetros
-        } else {
-          // Adicionar parâmetros básicos para visualização
-          cleanUrl = cleanUrl + '-/preview/300x300/-/format/auto/-/quality/light/';
-        }
-        
-        // Salvar a URL limpa
-        fotoUrls.push(cleanUrl);
-        
-        // Atualizar debug
-        document.getElementById('debugPreview').textContent = `URL: ${cleanUrl}`;
-        
-        const preview = document.getElementById("preview");
-        if (preview) {
-          preview.innerHTML += `
-            <div class="photo-wrapper">
-              <img src="${cleanUrl}" 
-                   class="photo-thumbnail" 
-                   onerror="this.onerror=null; this.src='https://placehold.co/70x70/cccccc/666666?text=Erro';"
-                   onclick="visualizarImagem('${cleanUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls).replace(/"/g, '&quot;')})"
-                   title="Clique para ampliar">
-            </div>`;
+        if (file && file.cdnUrl) {
+          // URL SIMPLES do Uploadcare - sem parâmetros extras
+          const imageUrl = file.cdnUrl;
+          console.log('URL da imagem:', imageUrl);
+          
+          // Salvar a URL
+          fotoUrls.push(imageUrl);
+          
+          // Mostrar preview
+          const preview = document.getElementById("preview");
+          if (preview) {
+            preview.innerHTML += `
+              <div class="photo-wrapper">
+                <img src="${imageUrl}" 
+                     class="photo-thumbnail" 
+                     onclick="visualizarImagem('${imageUrl}', ${fotoUrls.length - 1}, ${JSON.stringify(fotoUrls).replace(/"/g, '&quot;')})"
+                     title="Clique para ampliar">
+              </div>`;
+          }
         }
       });
       
-      uploader.onUploadFail((err, fileInfo) => {
+      widget.onUploadFail(function(err, fileInfo) {
         console.error('Upload falhou:', err, fileInfo);
-        document.getElementById('debugPreview').textContent = `Erro no upload: ${err}`;
+        alert('Erro ao fazer upload da imagem: ' + (err.message || err));
       });
       
     } catch (error) {
-      console.error('Erro ao inicializar Uploadcare widget:', error);
+      console.error('Erro ao configurar widget Uploadcare:', error);
     }
   }
   
   // Widget para edição
-  if (document.getElementById("editUploadcare") && window.uploadcare) {
+  const editUploadcareWidget = document.getElementById("editUploadcare");
+  if (editUploadcareWidget && window.uploadcare) {
     try {
-      editUploader = uploadcare.Widget("#editUploadcare");
+      const editWidget = uploadcare.Widget(editUploadcareWidget);
       
-      editUploader.onUploadComplete(file => {
+      editWidget.onUploadComplete(function(file) {
         console.log('Upload completo (edição):', file);
         
-        // Usar a URL original do Uploadcare
-        const originalUrl = file.originalUrl || file.cdnUrl;
-        
-        // Garantir que a URL não tenha parâmetros duplicados
-        let cleanUrl = originalUrl;
-        if (cleanUrl.includes('/-/')) {
-          // Já é uma URL do Uploadcare com parâmetros
-        } else {
-          cleanUrl = cleanUrl + '-/preview/300x300/-/format/auto/-/quality/light/';
-        }
-        
-        editFotoUrls.push(cleanUrl);
-        
-        const editPreview = document.getElementById("editPreview");
-        if (editPreview) {
-          editPreview.innerHTML += `
-            <div class="photo-wrapper">
-              <img src="${cleanUrl}" 
-                   class="photo-thumbnail" 
-                   onerror="this.onerror=null; this.src='https://placehold.co/70x70/cccccc/666666?text=Erro';"
-                   onclick="visualizarImagem('${cleanUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify([...editFotoUrls]).replace(/"/g, '&quot;')})"
-                   title="Clique para ampliar">
-            </div>`;
+        if (file && file.cdnUrl) {
+          // URL SIMPLES do Uploadcare
+          const imageUrl = file.cdnUrl;
+          
+          // Salvar a URL
+          editFotoUrls.push(imageUrl);
+          
+          // Mostrar preview
+          const editPreview = document.getElementById("editPreview");
+          if (editPreview) {
+            editPreview.innerHTML += `
+              <div class="photo-wrapper">
+                <img src="${imageUrl}" 
+                     class="photo-thumbnail" 
+                     onclick="visualizarImagem('${imageUrl}', ${editFotoUrls.length - 1}, ${JSON.stringify([...editFotoUrls]).replace(/"/g, '&quot;')})"
+                     title="Clique para ampliar">
+              </div>`;
+          }
         }
       });
       
     } catch (error) {
-      console.error('Erro ao inicializar Uploadcare widget de edição:', error);
+      console.error('Erro ao configurar widget Uploadcare de edição:', error);
     }
   }
 }
@@ -499,7 +465,6 @@ async function carregarProdutos() {
   const loadError = document.getElementById("loadError");
   const pagination = document.getElementById("pagination");
   const pageInfo = document.getElementById("pageInfo");
-  const debugInfo = document.getElementById("debugInfo");
   
   if (!lista) return;
   
@@ -567,41 +532,37 @@ async function getTotalCount() {
 
 function atualizarListaProdutos(querySnapshot) {
   const lista = document.getElementById("lista");
-  const debugInfo = document.getElementById("debugInfo");
-  
   if (!lista) return;
   
   lista.innerHTML = "";
   
   if (querySnapshot.empty) {
     lista.innerHTML = `<tr><td colspan="5" style="text-align:center">Nenhum produto cadastrado</td></tr>`;
-    debugInfo.textContent = "Nenhum produto encontrado.";
     return;
   }
-  
-  let debugText = `Total de produtos: ${querySnapshot.size}\n`;
   
   querySnapshot.forEach(doc => {
     const produto = doc.data();
     const produtoId = doc.id;
     const fotoUrlsArray = produto.fotos || [];
     
-    debugText += `\nProduto ${produto.numero}: ${fotoUrlsArray.length} foto(s)\n`;
-    fotoUrlsArray.forEach((url, i) => {
-      debugText += `  Foto ${i+1}: ${url.substring(0, 80)}...\n`;
-    });
-    
     // Gerar HTML para as fotos
     let fotosHTML = "Nenhuma foto";
     if (fotoUrlsArray.length > 0) {
       fotosHTML = `<div class="photo-container">`;
       fotoUrlsArray.forEach((url, index) => {
-        // Usar URL diretamente do Firebase (já deve ser uma URL válida do Uploadcare)
+        // Usar URL diretamente, MAS adicionar parâmetros de visualização se necessário
+        let displayUrl = url;
+        // Se a URL não tem parâmetros do Uploadcare, adiciona um básico
+        if (!url.includes('/-/')) {
+          displayUrl = url + '-/preview/300x300/';
+        }
+        
         fotosHTML += `
           <div class="photo-wrapper">
-            <img src="${url}" 
+            <img src="${displayUrl}" 
                  class="photo-thumbnail" 
-                 onerror="this.onerror=null; this.src='https://placehold.co/70x70/cccccc/666666?text=Erro'; console.error('Erro ao carregar:', '${url}')"
+                 onerror="this.onerror=null; this.src='${url}';"
                  onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(fotoUrlsArray).replace(/"/g, '&quot;')})"
                  title="Clique para ampliar">
           </div>`;
@@ -623,8 +584,6 @@ function atualizarListaProdutos(querySnapshot) {
         </td>
       </tr>`;
   });
-  
-  if (debugInfo) debugInfo.textContent = debugText;
 }
 
 // Buscar produtos
@@ -700,13 +659,24 @@ function visualizarImagem(src, index, fotoUrlsArray) {
     const imageModal = document.getElementById("imageModal");
     
     if (modalImage && imageCounter && imageModal) {
-      // Adicionar fallback para erro
+      // Adicionar parâmetros do Uploadcare para visualização em tamanho maior
+      let viewUrl = currentImages[currentImageIndex];
+      if (!viewUrl.includes('/-/')) {
+        viewUrl = viewUrl + '-/preview/1200x1200/-/quality/light/';
+      } else {
+        // Se já tem parâmetros, substitui por parâmetros de visualização
+        const baseUrl = viewUrl.split('/-/')[0];
+        viewUrl = baseUrl + '-/preview/1200x1200/-/quality/light/';
+      }
+      
       modalImage.onerror = function() {
-        console.error('Erro ao carregar imagem no modal:', this.src);
-        this.src = 'https://placehold.co/600x400/cccccc/666666?text=Imagem+não+carregada';
+        console.error('Erro ao carregar imagem no modal, tentando URL original...');
+        // Tentar com URL original sem parâmetros
+        const originalUrl = currentImages[currentImageIndex].split('/-/')[0];
+        this.src = originalUrl;
       };
       
-      modalImage.src = currentImages[currentImageIndex];
+      modalImage.src = viewUrl;
       imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
       imageModal.style.display = "flex";
       
@@ -747,7 +717,16 @@ function navImage(direction) {
   const imageCounter = document.getElementById("imageCounter");
   
   if (modalImage && imageCounter) {
-    modalImage.src = currentImages[currentImageIndex];
+    // Adicionar parâmetros do Uploadcare
+    let viewUrl = currentImages[currentImageIndex];
+    if (!viewUrl.includes('/-/')) {
+      viewUrl = viewUrl + '-/preview/1200x1200/-/quality/light/';
+    } else {
+      const baseUrl = viewUrl.split('/-/')[0];
+      viewUrl = baseUrl + '-/preview/1200x1200/-/quality/light/';
+    }
+    
+    modalImage.src = viewUrl;
     imageCounter.textContent = `${currentImageIndex + 1} / ${currentImages.length}`;
   }
 }
@@ -770,18 +749,24 @@ function abrirModalEdicao(produtoId, produto) {
   document.getElementById("editEquipamento").value = produto.equipamento || "";
   document.getElementById("editSetor").value = produto.setor || "";
   
-  // Mostrar fotos atuais (URLs do Uploadcare)
+  // Mostrar fotos atuais
   const editCurrentPhotos = document.getElementById("editCurrentPhotos");
   editCurrentPhotos.innerHTML = "<strong>Fotos atuais:</strong><br>";
   
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += `<div class="photo-container">`;
     produto.fotos.forEach((url, index) => {
+      // URL para preview
+      let previewUrl = url;
+      if (!url.includes('/-/')) {
+        previewUrl = url + '-/preview/300x300/';
+      }
+      
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
-          <img src="${url}" 
+          <img src="${previewUrl}" 
                class="photo-thumbnail" 
-               onerror="this.onerror=null; this.src='https://placehold.co/70x70/cccccc/666666?text=Erro'"
+               onerror="this.onerror=null; this.src='${url}';"
                onclick="visualizarImagem('${url}', ${index}, ${JSON.stringify(produto.fotos).replace(/"/g, '&quot;')})"
                title="Clique para ampliar">
         </div>`;
@@ -794,7 +779,6 @@ function abrirModalEdicao(produtoId, produto) {
   // Limpar fotos novas
   editFotoUrls = [];
   document.getElementById("editPreview").innerHTML = "";
-  if (editUploader) editUploader.value(null);
   
   // Mostrar modal
   document.getElementById("editModal").style.display = "flex";
@@ -862,19 +846,19 @@ async function atualizarProduto() {
     
     if (!produtoDoc.empty) {
       const produtoAtual = produtoDoc.docs[0].data();
-      // Manter URLs existentes do Uploadcare
+      // Manter URLs existentes
       urlsAtualizadas = [...(produtoAtual.fotos || [])];
     }
     
-    // Adicionar novas URLs do Uploadcare
+    // Adicionar novas URLs
     urlsAtualizadas = [...urlsAtualizadas, ...editFotoUrls];
     
-    // Atualizar no Firestore (apenas as URLs)
+    // Atualizar no Firestore
     await updateDoc(produtoRef, {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
-      fotos: urlsAtualizadas, // Apenas URLs do Uploadcare
+      fotos: urlsAtualizadas,
       atualizadoEm: Timestamp.now(),
       atualizadoPor: auth.currentUser?.email || "desconhecido"
     });
@@ -958,12 +942,11 @@ async function salvarProduto() {
   try {
     if (saveError) saveError.style.display = "none";
     
-    // Salvar no Firestore - APENAS os dados do produto e URLs das imagens
     await addDoc(collection(db, "produtos"), {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
-      fotos: fotoUrls, // Apenas URLs do Uploadcare
+      fotos: fotoUrls,
       timestamp: Timestamp.now(),
       criadoPor: auth.currentUser?.email || "desconhecido"
     });
@@ -972,10 +955,8 @@ async function salvarProduto() {
     numero.value = "";
     equipamento.value = "";
     setor.value = "";
-    fotoUrls = []; // Limpar array de URLs
+    fotoUrls = [];
     if (preview) preview.innerHTML = "";
-    document.getElementById('debugPreview').textContent = '';
-    if (uploader) uploader.value(null);
     
     // Recarregar lista (voltar para primeira página)
     currentPage = 1;
