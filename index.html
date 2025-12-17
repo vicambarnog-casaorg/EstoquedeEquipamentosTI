@@ -36,7 +36,7 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
     <br><br>
     <input id="password" type="password" placeholder="Senha">
     <br><br>
-    <button class="btn" onclick="login()">Entrar</button>
+    <button id="loginBtn" class="btn">Entrar</button>
   </div>
 
   <!-- APP -->
@@ -56,7 +56,7 @@ img{max-width:70px;border-radius:6px;margin-right:4px}
 
       <div id="preview" style="margin-top:10px"></div><br>
 
-      <button class="btn" onclick="salvarProduto()">Salvar produto</button>
+      <button id="saveProductBtn" class="btn">Salvar produto</button>
     </div>
 
     <div class="card">
@@ -107,20 +107,43 @@ uploader.onUploadComplete(file=>{
   }
 });
 
+// Elementos
+let loginBtn, saveProductBtn, logoutBtn;
+
+// Configurar eventos quando o DOM estiver carregado
+document.addEventListener('DOMContentLoaded', function() {
+  // Botões
+  loginBtn = document.getElementById("loginBtn");
+  saveProductBtn = document.getElementById("saveProductBtn");
+  logoutBtn = document.getElementById("logoutBtn");
+  
+  // Event Listeners
+  if (loginBtn) {
+    loginBtn.addEventListener('click', login);
+  }
+  
+  if (saveProductBtn) {
+    saveProductBtn.addEventListener('click', salvarProduto);
+  }
+  
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => signOut(auth));
+  }
+});
+
 // Auth
-window.login = async ()=>{
+async function login(){
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
   
   if (emailInput && passwordInput) {
-    await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+    try {
+      await signInWithEmailAndPassword(auth, emailInput.value, passwordInput.value);
+    } catch (error) {
+      console.error("Erro no login:", error);
+      alert("Erro no login: " + error.message);
+    }
   }
-};
-
-// Configurar logout
-const logoutBtn = document.getElementById("logoutBtn");
-if (logoutBtn) {
-  logoutBtn.onclick = () => signOut(auth);
 }
 
 onAuthStateChanged(auth,user=>{
@@ -151,12 +174,26 @@ async function salvarProduto(){
   const setor = document.getElementById("setor");
   const preview = document.getElementById("preview");
   
-  if (numero && equipamento && setor) {
+  // Validação básica
+  if (!numero || !equipamento || !setor) return;
+  
+  if (!numero.value.trim()) {
+    alert("Por favor, insira o número do patrimônio");
+    return;
+  }
+  
+  if (!equipamento.value.trim()) {
+    alert("Por favor, insira o equipamento");
+    return;
+  }
+  
+  try {
     await addDoc(collection(db,"produtos"),{
-      numero: numero.value,
-      equipamento: equipamento.value,
-      setor: setor.value,
-      fotos
+      numero: numero.value.trim(),
+      equipamento: equipamento.value.trim(),
+      setor: setor.value.trim(),
+      fotos,
+      timestamp: new Date()
     });
     
     // Limpar campos
@@ -167,6 +204,11 @@ async function salvarProduto(){
     if (preview) {
       preview.innerHTML = "";
     }
+    
+    alert("Produto salvo com sucesso!");
+  } catch (error) {
+    console.error("Erro ao salvar produto:", error);
+    alert("Erro ao salvar produto: " + error.message);
   }
 }
 
