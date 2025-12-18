@@ -10,19 +10,21 @@ header{background:#111;color:#fff;padding:10px 20px;display:flex;justify-content
 main{padding:20px}
 .card{background:#fff;border-radius:10px;padding:16px;margin-bottom:16px}
 .hidden{display:none}
-input{padding:8px;width:100%;box-sizing:border-box}
+input, textarea{padding:8px;width:100%;box-sizing:border-box;font-family:Arial}
+textarea{min-height:80px;resize:vertical}
 button{padding:8px 12px;border:0;border-radius:6px;cursor:pointer}
 .btn{background:#2563eb;color:#fff}
 .btn-edit{background:#f59e0b;color:#fff}
 .btn-delete{background:#dc2626;color:#fff}
 .btn-cancel{background:#6b7280;color:#fff}
+.btn-history{background:#10b981;color:#fff}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .photo-thumbnail{width:70px;height:70px;object-fit:cover;border-radius:6px;margin-right:4px;cursor:pointer;transition:transform 0.2s}
 .photo-thumbnail:hover{transform:scale(1.05)}
-.action-buttons{display:flex;gap:5px}
+.action-buttons{display:flex;gap:5px;flex-wrap:wrap}
 .modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:1000;align-items:center;justify-content:center}
-.modal-content{background:#fff;padding:20px;border-radius:10px;width:90%;max-width:500px;max-height:80vh;overflow-y:auto}
+.modal-content{background:#fff;padding:20px;border-radius:10px;width:90%;max-width:600px;max-height:80vh;overflow-y:auto}
 .image-modal{background:rgba(0,0,0,0.95);cursor:pointer}
 .image-modal-content{background:transparent;padding:0;max-width:90vw;max-height:90vh;width:auto;display:flex;align-items:center;justify-content:center}
 .image-modal-img{max-width:100%;max-height:90vh;object-fit:contain;border-radius:5px}
@@ -48,6 +50,50 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+.history-item {
+  background: #f8fafc;
+  border-left: 4px solid #2563eb;
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 4px;
+}
+.history-date {
+  font-weight: bold;
+  color: #374151;
+  font-size: 14px;
+}
+.history-text {
+  color: #4b5563;
+  margin-top: 5px;
+}
+.history-author {
+  font-size: 12px;
+  color: #6b7280;
+  text-align: right;
+  margin-top: 5px;
+}
+.history-container {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+}
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 12px;
+}
+.form-row > div {
+  flex: 1;
+}
+.form-row label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #374151;
 }
 </style>
 </head>
@@ -77,14 +123,42 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
   <div id="editModal" class="modal">
     <div class="modal-content">
       <h3>Editar Produto</h3>
-      <input id="editNumero" placeholder="Número do patrimônio"><br><br>
-      <input id="editEquipamento" placeholder="Equipamento"><br><br>
-      <input id="editSetor" placeholder="Setor"><br><br>
+      
+      <div class="form-row">
+        <div>
+          <label>Número do patrimônio *</label>
+          <input id="editNumero" placeholder="Ex: 001234">
+        </div>
+        <div>
+          <label>Setor *</label>
+          <input id="editSetor" placeholder="Ex: TI, Administrativo">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div>
+          <label>Equipamento *</label>
+          <input id="editEquipamento" placeholder="Ex: Notebook, Desktop">
+        </div>
+        <div>
+          <label>Modelo</label>
+          <input id="editModelo" placeholder="Ex: Dell Latitude 5420">
+        </div>
+      </div>
+      
+      <div style="margin-bottom:12px">
+        <label>Configuração</label>
+        <textarea id="editConfiguracao" placeholder="Processador, RAM, HD, etc."></textarea>
+      </div>
       
       <div id="editCurrentPhotos" style="margin-bottom:10px"></div>
       
       <div id="editPhotoUploadContainer">
+        <label>Adicionar mais fotos</label>
         <input type="file" id="editPhotoUpload" multiple accept="image/*" style="margin-bottom:10px">
+        <div id="uploadStatusEdit" style="margin:5px 0;font-size:14px;color:#666;display:none">
+          <span class="loading-spinner"></span><span id="statusTextEdit">Enviando imagens...</span>
+        </div>
         <div id="editPreview" style="margin-top:10px"></div>
       </div>
       
@@ -94,6 +168,28 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
         <button id="updateProductBtn" class="btn">Atualizar</button>
       </div>
       <p id="editError" style="color:red;display:none"></p>
+    </div>
+  </div>
+
+  <!-- Modal para Histórico de Manutenção -->
+  <div id="historyModal" class="modal">
+    <div class="modal-content">
+      <h3>Histórico de Manutenção</h3>
+      <p><strong>Produto:</strong> <span id="historyProductTitle"></span></p>
+      
+      <div style="margin:15px 0">
+        <label>Adicionar nova entrada ao histórico:</label>
+        <textarea id="newHistoryEntry" placeholder="Descreva o que foi feito na manutenção..."></textarea>
+        <button id="addHistoryBtn" class="btn" style="margin-top:8px">Adicionar ao Histórico</button>
+      </div>
+      
+      <h4>Histórico:</h4>
+      <div id="historyList" class="history-container"></div>
+      
+      <br>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button onclick="fecharModalHistorico()" class="btn-cancel">Fechar</button>
+      </div>
     </div>
   </div>
 
@@ -113,10 +209,41 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
     <!-- Formulário Principal -->
     <div class="card">
       <h3>Novo Produto</h3>
-      <input id="numero" placeholder="Número do patrimônio"><br><br>
-      <input id="equipamento" placeholder="Equipamento"><br><br>
-      <input id="setor" placeholder="Setor"><br><br>
+      
+      <div class="form-row">
+        <div>
+          <label>Número do patrimônio *</label>
+          <input id="numero" placeholder="Ex: 001234">
+        </div>
+        <div>
+          <label>Setor alocado *</label>
+          <input id="setor" placeholder="Ex: TI, Administrativo">
+        </div>
+      </div>
+      
+      <div class="form-row">
+        <div>
+          <label>Equipamento *</label>
+          <input id="equipamento" placeholder="Ex: Notebook, Desktop">
+        </div>
+        <div>
+          <label>Modelo</label>
+          <input id="modelo" placeholder="Ex: Dell Latitude 5420">
+        </div>
+      </div>
+      
+      <div style="margin-bottom:12px">
+        <label>Configuração</label>
+        <textarea id="configuracao" placeholder="Processador: i5-11400H, RAM: 16GB, SSD: 512GB, etc."></textarea>
+      </div>
+      
+      <div style="margin-bottom:12px">
+        <label>Histórico de Manutenção (opcional)</label>
+        <textarea id="historico" placeholder="Ex: 15/01/2024 - Troca de pasta térmica"></textarea>
+        <small style="color:#666">Pode deixar em branco e adicionar depois</small>
+      </div>
 
+      <label>Fotos do equipamento</label>
       <input type="file" id="photoUpload" multiple accept="image/*" style="margin-bottom:10px">
       <div id="uploadStatus" style="margin:5px 0;font-size:14px;color:#666;display:none">
         <span class="loading-spinner"></span><span id="statusText">Comprimindo e enviando imagens...</span>
@@ -137,14 +264,15 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       </div>
       
       <div style="margin-bottom:10px">
-        <input type="text" id="searchInput" placeholder="Buscar por número, equipamento ou setor..." style="width:100%">
+        <input type="text" id="searchInput" placeholder="Buscar por número, equipamento, modelo ou setor..." style="width:100%">
       </div>
       
       <table>
         <thead>
           <tr>
-            <th>Nº</th>
+            <th>Nº Patrimônio</th>
             <th>Equipamento</th>
+            <th>Modelo</th>
             <th>Setor</th>
             <th>Fotos</th>
             <th>Ações</th>
@@ -181,7 +309,9 @@ import {
   or,
   limit,
   startAfter,
-  getCountFromServer
+  getCountFromServer,
+  arrayUnion,
+  arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -207,6 +337,7 @@ const itemsPerPage = 10;
 let currentProductId = null;
 let currentImageIndex = 0;
 let currentImages = [];
+let currentHistoryProductId = null;
 
 // Configurar eventos quando o DOM carregar
 document.addEventListener('DOMContentLoaded', function() {
@@ -223,6 +354,7 @@ function setupEventListeners() {
   const logoutBtn = document.getElementById("logoutBtn");
   const refreshBtn = document.getElementById("refreshBtn");
   const searchInput = document.getElementById("searchInput");
+  const addHistoryBtn = document.getElementById("addHistoryBtn");
   
   // Upload de fotos
   const photoUpload = document.getElementById("photoUpload");
@@ -232,6 +364,11 @@ function setupEventListeners() {
   const cancelEditBtn = document.getElementById("cancelEditBtn");
   const updateProductBtn = document.getElementById("updateProductBtn");
   const editModal = document.getElementById("editModal");
+  
+  // Botões do modal de histórico
+  if (addHistoryBtn) {
+    addHistoryBtn.addEventListener('click', adicionarEntradaHistorico);
+  }
   
   // Botões de paginação
   const prevPageBtn = document.getElementById("prevPage");
@@ -250,14 +387,14 @@ function setupEventListeners() {
   // Upload de fotos - novo produto
   if (photoUpload) {
     photoUpload.addEventListener('change', async function(e) {
-      await handleImageUpload(e, 'preview', fotoBase64);
+      await handleImageUpload(e, 'preview', fotoBase64, 'uploadStatus', 'statusText');
     });
   }
   
   // Upload de fotos - edição
   if (editPhotoUpload) {
     editPhotoUpload.addEventListener('change', async function(e) {
-      await handleImageUpload(e, 'editPreview', editFotoBase64);
+      await handleImageUpload(e, 'editPreview', editFotoBase64, 'uploadStatusEdit', 'statusTextEdit');
     });
   }
   
@@ -276,24 +413,27 @@ function setupEventListeners() {
   if (updateProductBtn) updateProductBtn.addEventListener('click', atualizarProduto);
   
   // Fechar modais ao clicar fora
-  const modals = [document.getElementById("editModal"), document.getElementById("imageModal")];
+  const modals = [document.getElementById("editModal"), document.getElementById("imageModal"), document.getElementById("historyModal")];
   modals.forEach(modal => {
     if (modal) {
       modal.addEventListener('click', function(e) {
         if (e.target === modal) {
           if (modal.id === "editModal") fecharModalEdicao();
           if (modal.id === "imageModal") fecharModalImagem();
+          if (modal.id === "historyModal") fecharModalHistorico();
         }
       });
     }
   });
   
-  // Fechar modal de imagem com ESC
+  // Fechar modal de imagem com ESC e navegação com setas
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       fecharModalImagem();
+      fecharModalHistorico();
     }
-    // Navegação com setas
+    
+    // Navegação com setas no modal de imagem
     if (document.getElementById("imageModal").style.display === 'flex') {
       if (e.key === 'ArrowLeft') navImage(-1);
       if (e.key === 'ArrowRight') navImage(1);
@@ -339,7 +479,7 @@ async function compressImage(file, maxSizeKB = 100) {
         let height = img.height;
         
         // Redimensionar se muito grande (mantém proporção)
-        const maxDimension = 1200; // Máximo 1200px
+        const maxDimension = 1200;
         if (width > maxDimension || height > maxDimension) {
           if (width > height) {
             height = Math.round((height * maxDimension) / width);
@@ -360,10 +500,10 @@ async function compressImage(file, maxSizeKB = 100) {
         let quality = 0.8;
         let base64;
         
-        // Tentar diferentes qualidades para atingir ~100KB
+        // Tentar diferentes qualidades
         for (let i = 0; i < 5; i++) {
           base64 = canvas.toDataURL('image/jpeg', quality);
-          const sizeKB = (base64.length * 3) / 4 / 1024; // Tamanho aproximado em KB
+          const sizeKB = (base64.length * 3) / 4 / 1024;
           
           if (sizeKB <= maxSizeKB || quality <= 0.3) {
             break;
@@ -393,7 +533,6 @@ async function compressImage(file, maxSizeKB = 100) {
 // Função para upload no ImgBB
 async function uploadToImgBB(base64Image) {
   try {
-    // Remover cabeçalho data:image/jpeg;base64,
     const base64Data = base64Image.includes(',') 
       ? base64Image.split(',')[1] 
       : base64Image;
@@ -431,11 +570,11 @@ async function uploadToImgBB(base64Image) {
 }
 
 // Função principal para lidar com upload de imagens
-async function handleImageUpload(event, previewId, storageArray) {
+async function handleImageUpload(event, previewId, storageArray, statusId, statusTextId) {
   const files = event.target.files;
   const preview = document.getElementById(previewId);
-  const uploadStatus = document.getElementById("uploadStatus");
-  const statusText = document.getElementById("statusText");
+  const uploadStatus = document.getElementById(statusId);
+  const statusText = document.getElementById(statusTextId);
   
   if (!preview || !files.length) return;
   
@@ -452,7 +591,6 @@ async function handleImageUpload(event, previewId, storageArray) {
       continue;
     }
     
-    // Verificar tamanho (ImgBB limite: 32MB)
     if (file.size > 32 * 1024 * 1024) {
       alert('Imagem muito grande! Máximo: 32MB');
       continue;
@@ -479,7 +617,7 @@ async function handleImageUpload(event, previewId, storageArray) {
       storageArray.push({
         url: imgbbResult.url,
         thumb: imgbbResult.thumb,
-        localPreview: compressedBase64 // Para preview rápido
+        localPreview: compressedBase64
       });
       
       // Adicionar preview
@@ -490,7 +628,7 @@ async function handleImageUpload(event, previewId, storageArray) {
                class="photo-thumbnail" 
                data-index="${index}"
                data-url="${imgbbResult.url}"
-               onclick="visualizarImagemFromArray(${index}, ${storageArray.length})"
+               onclick="visualizarImagemFromArray(${index})"
                title="Clique para ampliar">
         </div>`;
         
@@ -564,7 +702,6 @@ onAuthStateChanged(auth, user => {
     if (logoutBtn) logoutBtn.classList.remove("hidden");
     if (userEmail) userEmail.innerText = user.email;
     
-    // Carregar produtos
     carregarProdutos();
   } else {
     if (loginCard) loginCard.classList.remove("hidden");
@@ -572,7 +709,6 @@ onAuthStateChanged(auth, user => {
     if (logoutBtn) logoutBtn.classList.add("hidden");
     if (userEmail) userEmail.innerText = "";
     
-    // Limpar lista
     const lista = document.getElementById("lista");
     if (lista) lista.innerHTML = "";
     
@@ -588,7 +724,6 @@ onAuthStateChanged(auth, user => {
 // FUNÇÕES DO FIRESTORE
 // =============================================
 
-// Carregar produtos com paginação
 async function carregarProdutos() {
   const lista = document.getElementById("lista");
   const loadError = document.getElementById("loadError");
@@ -620,15 +755,12 @@ async function carregarProdutos() {
     
     const querySnapshot = await getDocs(produtosQuery);
     
-    // Obter último documento visível para paginação
     if (!querySnapshot.empty) {
       lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
     }
     
-    // Atualizar lista
     atualizarListaProdutos(querySnapshot);
     
-    // Configurar paginação
     if (pagination && pageInfo) {
       const totalCount = await getTotalCount();
       const totalPages = Math.ceil(totalCount / itemsPerPage);
@@ -666,7 +798,7 @@ function atualizarListaProdutos(querySnapshot) {
   lista.innerHTML = "";
   
   if (querySnapshot.empty) {
-    lista.innerHTML = '<tr><td colspan="5" style="text-align:center">Nenhum produto cadastrado</td></tr>';
+    lista.innerHTML = '<tr><td colspan="6" style="text-align:center">Nenhum produto cadastrado</td></tr>';
     return;
   }
   
@@ -675,7 +807,6 @@ function atualizarListaProdutos(querySnapshot) {
     const produtoId = doc.id;
     const fotoUrlsArray = produto.fotos || [];
     
-    // Gerar HTML para as fotos
     let fotosHTML = "Nenhuma foto";
     if (fotoUrlsArray.length > 0) {
       fotosHTML = '<div class="photo-container">';
@@ -684,7 +815,7 @@ function atualizarListaProdutos(querySnapshot) {
           <div class="photo-wrapper">
             <img src="${url}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagemModal('${url}', ${index}, ${fotoUrlsArray.length})"
+                 onclick="visualizarImagemFromList('${produtoId}', ${index})"
                  title="Clique para ampliar"
                  onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
           </div>`;
@@ -694,12 +825,14 @@ function atualizarListaProdutos(querySnapshot) {
     
     lista.innerHTML += `
       <tr id="produto-${produtoId}">
-        <td>${produto.numero || ''}</td>
+        <td><strong>${produto.numero || ''}</strong></td>
         <td>${produto.equipamento || ''}</td>
+        <td>${produto.modelo || '-'}</td>
         <td>${produto.setor || ''}</td>
         <td>${fotosHTML}</td>
         <td>
           <div class="action-buttons">
+            <button class="btn-history" onclick="abrirModalHistorico('${produtoId}', '${produto.numero || ''} - ${produto.equipamento || ''}')">Histórico</button>
             <button class="btn-edit" onclick="editarProduto('${produtoId}')">Editar</button>
             <button class="btn-delete" onclick="confirmarExclusao('${produtoId}', '${produto.numero || ''}')">Excluir</button>
           </div>
@@ -708,7 +841,6 @@ function atualizarListaProdutos(querySnapshot) {
   });
 }
 
-// Buscar produtos
 async function buscarProdutos(termo) {
   const lista = document.getElementById("lista");
   const loadError = document.getElementById("loadError");
@@ -732,6 +864,8 @@ async function buscarProdutos(termo) {
         where("numero", "<=", termo + "\uf8ff"),
         where("equipamento", ">=", termo),
         where("equipamento", "<=", termo + "\uf8ff"),
+        where("modelo", ">=", termo),
+        where("modelo", "<=", termo + "\uf8ff"),
         where("setor", ">=", termo),
         where("setor", "<=", termo + "\uf8ff")
       )
@@ -749,7 +883,6 @@ async function buscarProdutos(termo) {
   }
 }
 
-// Paginação
 async function proximaPagina() {
   currentPage++;
   await carregarProdutos();
@@ -766,30 +899,45 @@ async function paginaAnterior() {
 // FUNÇÕES DE VISUALIZAÇÃO DE IMAGENS
 // =============================================
 
-function visualizarImagemFromArray(index, total) {
+function visualizarImagemFromArray(index) {
   if (!fotoBase64[index]) return;
   const url = fotoBase64[index].url || fotoBase64[index].localPreview;
-  visualizarImagemModal(url, index, total);
+  visualizarImagemModalComTodas([url], 0);
 }
 
-function visualizarImagemModal(imageSrc, index, totalImages) {
-  currentImages = [imageSrc];
-  currentImageIndex = 0;
+function visualizarImagemFromList(produtoId, index) {
+  const container = document.querySelector(`#produto-${produtoId} .photo-container`);
+  if (!container) return;
+  
+  const images = container.querySelectorAll('img');
+  const imageUrls = [];
+  images.forEach(img => {
+    imageUrls.push(img.src);
+  });
+  
+  visualizarImagemModalComTodas(imageUrls, index);
+}
+
+function visualizarImagemModalComTodas(imageUrls, startIndex) {
+  currentImages = imageUrls;
+  currentImageIndex = startIndex;
   
   const modalImage = document.getElementById("modalImage");
   const imageCounter = document.getElementById("imageCounter");
   const imageModal = document.getElementById("imageModal");
+  const prevBtn = document.querySelector('.image-nav.prev');
+  const nextBtn = document.querySelector('.image-nav.next');
   
   if (modalImage && imageCounter && imageModal) {
-    modalImage.src = imageSrc;
-    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + 1;
+    modalImage.src = currentImages[currentImageIndex];
+    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
     imageModal.style.display = "flex";
     
     // Mostrar/ocultar botões de navegação
-    const navButtons = document.querySelectorAll('.image-nav');
-    navButtons.forEach(nav => {
-      nav.style.display = 'none';
-    });
+    if (prevBtn && nextBtn) {
+      prevBtn.style.display = currentImages.length > 1 ? 'flex' : 'none';
+      nextBtn.style.display = currentImages.length > 1 ? 'flex' : 'none';
+    }
   }
 }
 
@@ -829,12 +977,12 @@ function fecharModalImagem() {
 function abrirModalEdicao(produtoId, produto) {
   currentProductId = produtoId;
   
-  // Preencher campos do formulário
   document.getElementById("editNumero").value = produto.numero || "";
   document.getElementById("editEquipamento").value = produto.equipamento || "";
   document.getElementById("editSetor").value = produto.setor || "";
+  document.getElementById("editModelo").value = produto.modelo || "";
+  document.getElementById("editConfiguracao").value = produto.configuracao || "";
   
-  // Mostrar fotos atuais
   const editCurrentPhotos = document.getElementById("editCurrentPhotos");
   editCurrentPhotos.innerHTML = "<strong>Fotos atuais:</strong><br>";
   
@@ -845,7 +993,7 @@ function abrirModalEdicao(produtoId, produto) {
         <div class="photo-wrapper">
           <img src="${url}" 
                class="photo-thumbnail" 
-               onclick="visualizarImagemModal('${url}', ${index}, ${produto.fotos.length})"
+               onclick="visualizarImagemModalComTodas([${produto.fotos.map(f => `'${f}'`).join(',')}], ${index})"
                title="Clique para ampliar"
                onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
         </div>`;
@@ -855,12 +1003,10 @@ function abrirModalEdicao(produtoId, produto) {
     editCurrentPhotos.innerHTML += "Nenhuma foto";
   }
   
-  // Limpar fotos novas
   editFotoBase64 = [];
   document.getElementById("editPreview").innerHTML = "";
   document.getElementById("editPhotoUpload").value = "";
   
-  // Mostrar modal
   document.getElementById("editModal").style.display = "flex";
 }
 
@@ -890,6 +1036,8 @@ async function atualizarProduto() {
   const editNumero = document.getElementById("editNumero");
   const editEquipamento = document.getElementById("editEquipamento");
   const editSetor = document.getElementById("editSetor");
+  const editModelo = document.getElementById("editModelo");
+  const editConfiguracao = document.getElementById("editConfiguracao");
   const editError = document.getElementById("editError");
   
   if (!currentProductId) return;
@@ -897,6 +1045,8 @@ async function atualizarProduto() {
   const numeroVal = editNumero.value.trim();
   const equipamentoVal = editEquipamento.value.trim();
   const setorVal = editSetor.value.trim();
+  const modeloVal = editModelo.value.trim();
+  const configuracaoVal = editConfiguracao.value.trim();
   
   if (!numeroVal) {
     alert("Por favor, insira o número do patrimônio");
@@ -913,7 +1063,6 @@ async function atualizarProduto() {
   try {
     if (editError) editError.style.display = "none";
     
-    // Primeiro, buscar o produto atual
     const produtoRef = doc(db, "produtos", currentProductId);
     const produtoDoc = await getDocs(query(collection(db, "produtos"), where("__name__", "==", currentProductId)));
     
@@ -921,25 +1070,23 @@ async function atualizarProduto() {
     
     if (!produtoDoc.empty) {
       const produtoAtual = produtoDoc.docs[0].data();
-      // Manter imagens existentes
       fotosAtualizadas = [...(produtoAtual.fotos || [])];
     }
     
-    // Adicionar novas imagens (URLs do ImgBB)
     const novasFotosUrls = editFotoBase64.map(img => img.url);
     fotosAtualizadas = [...fotosAtualizadas, ...novasFotosUrls];
     
-    // Atualizar no Firestore
     await updateDoc(produtoRef, {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
+      modelo: modeloVal,
+      configuracao: configuracaoVal,
       fotos: fotosAtualizadas,
       atualizadoEm: Timestamp.now(),
       atualizadoPor: auth.currentUser?.email || "desconhecido"
     });
     
-    // Fechar modal e recarregar lista
     fecharModalEdicao();
     await carregarProdutos();
     
@@ -952,6 +1099,110 @@ async function atualizarProduto() {
       editError.style.display = "block";
     }
     alert("❌ Erro ao atualizar produto: " + error.message);
+  }
+}
+
+// =============================================
+// FUNÇÕES DE HISTÓRICO DE MANUTENÇÃO
+// =============================================
+
+async function abrirModalHistorico(produtoId, produtoNome) {
+  currentHistoryProductId = produtoId;
+  
+  document.getElementById("historyProductTitle").textContent = produtoNome;
+  document.getElementById("newHistoryEntry").value = "";
+  
+  await carregarHistorico(produtoId);
+  document.getElementById("historyModal").style.display = "flex";
+}
+
+function fecharModalHistorico() {
+  document.getElementById("historyModal").style.display = "none";
+  currentHistoryProductId = null;
+}
+
+async function carregarHistorico(produtoId) {
+  const historyList = document.getElementById("historyList");
+  
+  try {
+    const produtoDoc = await getDocs(query(collection(db, "produtos"), where("__name__", "==", produtoId)));
+    
+    if (!produtoDoc.empty) {
+      const produto = produtoDoc.docs[0].data();
+      const historico = produto.historico || [];
+      
+      if (historico.length === 0) {
+        historyList.innerHTML = '<p style="text-align:center;color:#666">Nenhuma entrada no histórico</p>';
+        return;
+      }
+      
+      // Ordenar por data (mais recente primeiro)
+      historico.sort((a, b) => new Date(b.data) - new Date(a.data));
+      
+      let html = '';
+      historico.forEach(entry => {
+        const date = new Date(entry.data).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        html += `
+          <div class="history-item">
+            <div class="history-date">${date}</div>
+            <div class="history-text">${entry.texto}</div>
+            <div class="history-author">Registrado por: ${entry.autor || 'Sistema'}</div>
+          </div>
+        `;
+      });
+      
+      historyList.innerHTML = html;
+    }
+  } catch (error) {
+    console.error("Erro ao carregar histórico:", error);
+    historyList.innerHTML = '<p style="color:red">Erro ao carregar histórico</p>';
+  }
+}
+
+async function adicionarEntradaHistorico() {
+  const newHistoryEntry = document.getElementById("newHistoryEntry");
+  const texto = newHistoryEntry.value.trim();
+  
+  if (!texto) {
+    alert("Por favor, descreva o que foi feito na manutenção");
+    newHistoryEntry.focus();
+    return;
+  }
+  
+  if (!currentHistoryProductId) return;
+  
+  try {
+    const produtoRef = doc(db, "produtos", currentHistoryProductId);
+    const usuario = auth.currentUser?.email || "Sistema";
+    const dataAtual = new Date().toISOString();
+    
+    const novaEntrada = {
+      data: dataAtual,
+      texto: texto,
+      autor: usuario
+    };
+    
+    // Adicionar ao array de histórico
+    await updateDoc(produtoRef, {
+      historico: arrayUnion(novaEntrada)
+    });
+    
+    // Limpar campo e recarregar
+    newHistoryEntry.value = "";
+    await carregarHistorico(currentHistoryProductId);
+    
+    alert("✅ Entrada adicionada ao histórico!");
+    
+  } catch (error) {
+    console.error("Erro ao adicionar histórico:", error);
+    alert("❌ Erro ao adicionar entrada: " + error.message);
   }
 }
 
@@ -974,13 +1225,11 @@ async function excluirProduto(produtoId) {
   try {
     await deleteDoc(doc(db, "produtos", produtoId));
     
-    // Remover da lista visualmente
     const elemento = document.getElementById("produto-" + produtoId);
     if (elemento) {
       elemento.remove();
     }
     
-    // Recarregar lista se estiver vazia
     const lista = document.getElementById("lista");
     if (lista && lista.children.length === 1) {
       carregarProdutos();
@@ -1002,14 +1251,19 @@ async function salvarProduto() {
   const numero = document.getElementById("numero");
   const equipamento = document.getElementById("equipamento");
   const setor = document.getElementById("setor");
+  const modelo = document.getElementById("modelo");
+  const configuracao = document.getElementById("configuracao");
+  const historicoInicial = document.getElementById("historico");
   const preview = document.getElementById("preview");
   const saveError = document.getElementById("saveError");
   const uploadStatus = document.getElementById("uploadStatus");
-  const statusText = document.getElementById("statusText");
   
   const numeroVal = numero.value.trim();
   const equipamentoVal = equipamento.value.trim();
   const setorVal = setor.value.trim();
+  const modeloVal = modelo.value.trim();
+  const configuracaoVal = configuracao.value.trim();
+  const historicoInicialVal = historicoInicial.value.trim();
   
   if (!numeroVal) {
     alert("Por favor, insira o número do patrimônio");
@@ -1023,7 +1277,12 @@ async function salvarProduto() {
     return;
   }
   
-  // Verificar se há imagens sendo processadas
+  if (!setorVal) {
+    alert("Por favor, insira o setor alocado");
+    setor.focus();
+    return;
+  }
+  
   if (uploadStatus && uploadStatus.style.display === 'block') {
     alert("Aguarde o upload das imagens terminar antes de salvar.");
     return;
@@ -1032,14 +1291,27 @@ async function salvarProduto() {
   try {
     if (saveError) saveError.style.display = "none";
     
-    // Extrair apenas URLs do ImgBB
+    // Extrair URLs do ImgBB
     const fotosUrls = fotoBase64.map(img => img.url);
+    
+    // Preparar histórico inicial se houver
+    let historicoArray = [];
+    if (historicoInicialVal) {
+      historicoArray.push({
+        data: new Date().toISOString(),
+        texto: historicoInicialVal,
+        autor: auth.currentUser?.email || "Sistema"
+      });
+    }
     
     await addDoc(collection(db, "produtos"), {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
+      modelo: modeloVal,
+      configuracao: configuracaoVal,
       fotos: fotosUrls,
+      historico: historicoArray,
       timestamp: Timestamp.now(),
       criadoPor: auth.currentUser?.email || "desconhecido"
     });
@@ -1048,6 +1320,9 @@ async function salvarProduto() {
     numero.value = "";
     equipamento.value = "";
     setor.value = "";
+    modelo.value = "";
+    configuracao.value = "";
+    historicoInicial.value = "";
     fotoBase64 = [];
     if (preview) preview.innerHTML = "";
     document.getElementById("photoUpload").value = "";
@@ -1075,10 +1350,13 @@ async function salvarProduto() {
 
 window.editarProduto = editarProduto;
 window.confirmarExclusao = confirmarExclusao;
-window.visualizarImagemModal = visualizarImagemModal;
+window.visualizarImagemModalComTodas = visualizarImagemModalComTodas;
 window.visualizarImagemFromArray = visualizarImagemFromArray;
+window.visualizarImagemFromList = visualizarImagemFromList;
 window.navImage = navImage;
 window.fecharModalImagem = fecharModalImagem;
+window.abrirModalHistorico = abrirModalHistorico;
+window.fecharModalHistorico = fecharModalHistorico;
 </script>
 
 </body>
