@@ -35,6 +35,20 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
 .image-close:hover{background:rgba(255,255,255,0.4)}
 .photo-container{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .photo-wrapper{position:relative}
+.loading-spinner {
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #2563eb;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  margin-right: 8px;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 </style>
 </head>
 <body>
@@ -70,13 +84,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       <div id="editCurrentPhotos" style="margin-bottom:10px"></div>
       
       <div id="editPhotoUploadContainer">
-        <input type="hidden"
-          id="editUploadcare"
-          role="uploadcare-uploader"
-          data-public-key="a4d223bddcdb3028ec83"
-          data-images-only="true"
-          data-camera="true"
-          data-multiple="true">
+        <input type="file" id="editPhotoUpload" multiple accept="image/*" style="margin-bottom:10px">
         <div id="editPreview" style="margin-top:10px"></div>
       </div>
       
@@ -109,13 +117,10 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       <input id="equipamento" placeholder="Equipamento"><br><br>
       <input id="setor" placeholder="Setor"><br><br>
 
-      <input type="hidden"
-        id="uploadcare"
-        role="uploadcare-uploader"
-        data-public-key="a4d223bddcdb3028ec83"
-        data-images-only="true"
-        data-camera="true"
-        data-multiple="true">
+      <input type="file" id="photoUpload" multiple accept="image/*" style="margin-bottom:10px">
+      <div id="uploadStatus" style="margin:5px 0;font-size:14px;color:#666;display:none">
+        <span class="loading-spinner"></span><span id="statusText">Comprimindo e enviando imagens...</span>
+      </div>
 
       <div id="preview" style="margin-top:10px" class="photo-container"></div>
       <br>
@@ -190,9 +195,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
+// Configuração do ImgBB
+const IMGBB_API_KEY = 'f79456acbdeadef07393b773e313a05d';
+
 // Variáveis globais
-let fotoUrls = [];
-let editFotoUrls = [];
+let fotoBase64 = []; // Armazena objetos {url, thumb, localPreview}
+let editFotoBase64 = []; // Para edição
 let lastVisible = null;
 let currentPage = 1;
 const itemsPerPage = 10;
@@ -216,6 +224,10 @@ function setupEventListeners() {
   const refreshBtn = document.getElementById("refreshBtn");
   const searchInput = document.getElementById("searchInput");
   
+  // Upload de fotos
+  const photoUpload = document.getElementById("photoUpload");
+  const editPhotoUpload = document.getElementById("editPhotoUpload");
+  
   // Botões do modal de edição
   const cancelEditBtn = document.getElementById("cancelEditBtn");
   const updateProductBtn = document.getElementById("updateProductBtn");
@@ -234,6 +246,20 @@ function setupEventListeners() {
     lastVisible = null;
     carregarProdutos();
   });
+  
+  // Upload de fotos - novo produto
+  if (photoUpload) {
+    photoUpload.addEventListener('change', async function(e) {
+      await handleImageUpload(e, 'preview', fotoBase64);
+    });
+  }
+  
+  // Upload de fotos - edição
+  if (editPhotoUpload) {
+    editPhotoUpload.addEventListener('change', async function(e) {
+      await handleImageUpload(e, 'editPreview', editFotoBase64);
+    });
+  }
   
   // Busca
   if (searchInput) {
@@ -293,7 +319,201 @@ function setupEventListeners() {
   }
 }
 
-// Auth
+// =============================================
+// FUNÇÕES DE COMPRESSÃO E UPLOAD DE IMAGENS
+// =============================================
+
+// Função para comprimir imagem para ~100KB
+async function compressImage(file, maxSizeKB = 100) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        
+        // Redimensionar se muito grande (mantém proporção)
+        const maxDimension = 1200; // Máximo 1200px
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Qualidade inicial
+        let quality = 0.8;
+        let base64;
+        
+        // Tentar diferentes qualidades para atingir ~100KB
+        for (let i = 0; i < 5; i++) {
+          base64 = canvas.toDataURL('image/jpeg', quality);
+          const sizeKB = (base64.length * 3) / 4 / 1024; // Tamanho aproximado em KB
+          
+          if (sizeKB <= maxSizeKB || quality <= 0.3) {
+            break;
+          }
+          quality -= 0.15;
+        }
+        
+        // Se ainda muito grande, reduzir dimensões
+        if ((base64.length * 3) / 4 / 1024 > maxSizeKB) {
+          canvas.width = Math.round(width * 0.7);
+          canvas.height = Math.round(height * 0.7);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          base64 = canvas.toDataURL('image/jpeg', 0.6);
+        }
+        
+        console.log(`Imagem comprimida: ${Math.round((base64.length * 3) / 4 / 1024)}KB`);
+        resolve(base64);
+      };
+      
+      img.onerror = reject;
+    };
+    
+    reader.onerror = reject;
+  });
+}
+
+// Função para upload no ImgBB
+async function uploadToImgBB(base64Image) {
+  try {
+    // Remover cabeçalho data:image/jpeg;base64,
+    const base64Data = base64Image.includes(',') 
+      ? base64Image.split(',')[1] 
+      : base64Image;
+    
+    const formData = new FormData();
+    formData.append('image', base64Data);
+    
+    console.log('Enviando para ImgBB...');
+    
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Erro HTTP: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error(data.error?.message || 'Falha no upload');
+    }
+    
+    return {
+      url: data.data.url,
+      thumb: data.data.thumb?.url || data.data.url,
+      deleteUrl: data.data.delete_url
+    };
+    
+  } catch (error) {
+    console.error('Erro no ImgBB:', error);
+    throw new Error('Falha ao enviar imagem: ' + error.message);
+  }
+}
+
+// Função principal para lidar com upload de imagens
+async function handleImageUpload(event, previewId, storageArray) {
+  const files = event.target.files;
+  const preview = document.getElementById(previewId);
+  const uploadStatus = document.getElementById("uploadStatus");
+  const statusText = document.getElementById("statusText");
+  
+  if (!preview || !files.length) return;
+  
+  // Mostrar status de upload
+  if (uploadStatus && statusText) {
+    uploadStatus.style.display = 'block';
+  }
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    
+    if (!file.type.match('image.*')) {
+      alert('Por favor, selecione apenas imagens (JPG, PNG, etc).');
+      continue;
+    }
+    
+    // Verificar tamanho (ImgBB limite: 32MB)
+    if (file.size > 32 * 1024 * 1024) {
+      alert('Imagem muito grande! Máximo: 32MB');
+      continue;
+    }
+    
+    try {
+      // Atualizar status
+      if (statusText) {
+        statusText.textContent = `Comprimindo imagem ${i + 1}/${files.length}...`;
+      }
+      
+      // Comprimir imagem para ~100KB
+      const compressedBase64 = await compressImage(file, 100);
+      
+      // Atualizar status
+      if (statusText) {
+        statusText.textContent = `Enviando imagem ${i + 1}/${files.length} para ImgBB...`;
+      }
+      
+      // Upload para ImgBB
+      const imgbbResult = await uploadToImgBB(compressedBase64);
+      
+      // Armazenar objeto com URL
+      storageArray.push({
+        url: imgbbResult.url,
+        thumb: imgbbResult.thumb,
+        localPreview: compressedBase64 // Para preview rápido
+      });
+      
+      // Adicionar preview
+      const index = storageArray.length - 1;
+      preview.innerHTML += `
+        <div class="photo-wrapper">
+          <img src="${compressedBase64}" 
+               class="photo-thumbnail" 
+               data-index="${index}"
+               data-url="${imgbbResult.url}"
+               onclick="visualizarImagemFromArray(${index}, ${storageArray.length})"
+               title="Clique para ampliar">
+        </div>`;
+        
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      alert(`Erro na imagem ${i + 1}: ${error.message}`);
+      break;
+    }
+  }
+  
+  // Esconder status de upload
+  if (uploadStatus) {
+    uploadStatus.style.display = 'none';
+  }
+  
+  // Limpar input
+  event.target.value = '';
+}
+
+// =============================================
+// FUNÇÕES DE AUTENTICAÇÃO
+// =============================================
+
 async function login() {
   const emailInput = document.getElementById("email");
   const passwordInput = document.getElementById("password");
@@ -364,7 +584,11 @@ onAuthStateChanged(auth, user => {
   }
 });
 
-// Firestore - Carregar produtos com paginação
+// =============================================
+// FUNÇÕES DO FIRESTORE
+// =============================================
+
+// Carregar produtos com paginação
 async function carregarProdutos() {
   const lista = document.getElementById("lista");
   const loadError = document.getElementById("loadError");
@@ -456,16 +680,13 @@ function atualizarListaProdutos(querySnapshot) {
     if (fotoUrlsArray.length > 0) {
       fotosHTML = '<div class="photo-container">';
       fotoUrlsArray.forEach((url, index) => {
-        // Função auxiliar para escapar aspas simples
-        const escapedUrl = url.replace(/'/g, "\\'");
-        const escapedArray = JSON.stringify(fotoUrlsArray).replace(/'/g, "\\'");
-        
         fotosHTML += `
           <div class="photo-wrapper">
             <img src="${url}" 
                  class="photo-thumbnail" 
-                 onclick="visualizarImagem('${escapedUrl}', ${index}, '${escapedArray}')"
-                 title="Clique para ampliar">
+                 onclick="visualizarImagemModal('${url}', ${index}, ${fotoUrlsArray.length})"
+                 title="Clique para ampliar"
+                 onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
           </div>`;
       });
       fotosHTML += '</div>';
@@ -541,72 +762,54 @@ async function paginaAnterior() {
   }
 }
 
-// Funções de Visualização de Imagens - FORA do módulo para serem globais
-function visualizarImagem(src, index, fotoUrlsArrayString) {
-  console.log('visualizarImagem chamada com:', {src, index, fotoUrlsArrayString});
+// =============================================
+// FUNÇÕES DE VISUALIZAÇÃO DE IMAGENS
+// =============================================
+
+function visualizarImagemFromArray(index, total) {
+  if (!fotoBase64[index]) return;
+  const url = fotoBase64[index].url || fotoBase64[index].localPreview;
+  visualizarImagemModal(url, index, total);
+}
+
+function visualizarImagemModal(imageSrc, index, totalImages) {
+  currentImages = [imageSrc];
+  currentImageIndex = 0;
   
-  try {
-    // Converter string de array para array real
-    let fotoUrlsArray;
-    try {
-      fotoUrlsArray = JSON.parse(fotoUrlsArrayString);
-    } catch (e) {
-      console.error('Erro ao parsear JSON:', e);
-      fotoUrlsArray = [src];
-    }
+  const modalImage = document.getElementById("modalImage");
+  const imageCounter = document.getElementById("imageCounter");
+  const imageModal = document.getElementById("imageModal");
+  
+  if (modalImage && imageCounter && imageModal) {
+    modalImage.src = imageSrc;
+    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + 1;
+    imageModal.style.display = "flex";
     
-    window.currentImages = Array.isArray(fotoUrlsArray) ? fotoUrlsArray : [src];
-    window.currentImageIndex = index || 0;
-    
-    console.log('Imagens para visualizar:', window.currentImages);
-    
-    // Atualizar imagem no modal
-    const modalImage = document.getElementById("modalImage");
-    const imageCounter = document.getElementById("imageCounter");
-    const imageModal = document.getElementById("imageModal");
-    
-    if (modalImage && imageCounter && imageModal) {
-      modalImage.onerror = function() {
-        console.log('Imagem não carregada, usando placeholder');
-        this.src = 'https://via.placeholder.com/600x400?text=Imagem+não+carregada';
-      };
-      
-      modalImage.src = src;
-      imageCounter.textContent = (window.currentImageIndex + 1) + ' / ' + window.currentImages.length;
-      imageModal.style.display = "flex";
-      
-      // Mostrar/ocultar botões de navegação
-      const navButtons = document.querySelectorAll('.image-nav');
-      navButtons.forEach(nav => {
-        nav.style.display = window.currentImages.length > 1 ? 'flex' : 'none';
-      });
-    } else {
-      console.error('Elementos do modal não encontrados');
-    }
-  } catch (error) {
-    console.error("Erro em visualizarImagem:", error);
+    // Mostrar/ocultar botões de navegação
+    const navButtons = document.querySelectorAll('.image-nav');
+    navButtons.forEach(nav => {
+      nav.style.display = 'none';
+    });
   }
 }
 
 function navImage(direction) {
-  if (!window.currentImages || !window.currentImages.length) return;
+  if (!currentImages || !currentImages.length) return;
   
-  window.currentImageIndex += direction;
+  currentImageIndex += direction;
   
-  // Circular navigation
-  if (window.currentImageIndex < 0) {
-    window.currentImageIndex = window.currentImages.length - 1;
-  } else if (window.currentImageIndex >= window.currentImages.length) {
-    window.currentImageIndex = 0;
+  if (currentImageIndex < 0) {
+    currentImageIndex = currentImages.length - 1;
+  } else if (currentImageIndex >= currentImages.length) {
+    currentImageIndex = 0;
   }
   
   const modalImage = document.getElementById("modalImage");
   const imageCounter = document.getElementById("imageCounter");
   
   if (modalImage && imageCounter) {
-    const src = window.currentImages[window.currentImageIndex];
-    modalImage.src = src;
-    imageCounter.textContent = (window.currentImageIndex + 1) + ' / ' + window.currentImages.length;
+    modalImage.src = currentImages[currentImageIndex];
+    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
   }
 }
 
@@ -615,11 +818,14 @@ function fecharModalImagem() {
   if (imageModal) {
     imageModal.style.display = "none";
   }
-  window.currentImages = [];
-  window.currentImageIndex = 0;
+  currentImages = [];
+  currentImageIndex = 0;
 }
 
-// Funções de edição
+// =============================================
+// FUNÇÕES DE EDIÇÃO
+// =============================================
+
 function abrirModalEdicao(produtoId, produto) {
   currentProductId = produtoId;
   
@@ -635,15 +841,13 @@ function abrirModalEdicao(produtoId, produto) {
   if (produto.fotos && produto.fotos.length > 0) {
     editCurrentPhotos.innerHTML += '<div class="photo-container">';
     produto.fotos.forEach((url, index) => {
-      const escapedUrl = url.replace(/'/g, "\\'");
-      const escapedArray = JSON.stringify(produto.fotos).replace(/'/g, "\\'");
-      
       editCurrentPhotos.innerHTML += `
         <div class="photo-wrapper">
           <img src="${url}" 
                class="photo-thumbnail" 
-               onclick="visualizarImagem('${escapedUrl}', ${index}, '${escapedArray}')"
-               title="Clique para ampliar">
+               onclick="visualizarImagemModal('${url}', ${index}, ${produto.fotos.length})"
+               title="Clique para ampliar"
+               onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
         </div>`;
     });
     editCurrentPhotos.innerHTML += '</div>';
@@ -652,8 +856,9 @@ function abrirModalEdicao(produtoId, produto) {
   }
   
   // Limpar fotos novas
-  editFotoUrls = [];
+  editFotoBase64 = [];
   document.getElementById("editPreview").innerHTML = "";
+  document.getElementById("editPhotoUpload").value = "";
   
   // Mostrar modal
   document.getElementById("editModal").style.display = "flex";
@@ -662,16 +867,13 @@ function abrirModalEdicao(produtoId, produto) {
 function fecharModalEdicao() {
   document.getElementById("editModal").style.display = "none";
   currentProductId = null;
-  editFotoUrls = [];
+  editFotoBase64 = [];
   document.getElementById("editPreview").innerHTML = "";
   document.getElementById("editError").style.display = "none";
 }
 
-// Editar produto - precisa ser global
 async function editarProduto(produtoId) {
   try {
-    // Buscar dados do produto
-    const produtoRef = doc(db, "produtos", produtoId);
     const produtoDoc = await getDocs(query(collection(db, "produtos"), where("__name__", "==", produtoId)));
     
     if (!produtoDoc.empty) {
@@ -684,7 +886,6 @@ async function editarProduto(produtoId) {
   }
 }
 
-// Atualizar produto
 async function atualizarProduto() {
   const editNumero = document.getElementById("editNumero");
   const editEquipamento = document.getElementById("editEquipamento");
@@ -697,7 +898,6 @@ async function atualizarProduto() {
   const equipamentoVal = editEquipamento.value.trim();
   const setorVal = editSetor.value.trim();
   
-  // Validação
   if (!numeroVal) {
     alert("Por favor, insira o número do patrimônio");
     editNumero.focus();
@@ -713,27 +913,28 @@ async function atualizarProduto() {
   try {
     if (editError) editError.style.display = "none";
     
-    // Primeiro, buscar o produto atual para preservar URLs existentes
+    // Primeiro, buscar o produto atual
     const produtoRef = doc(db, "produtos", currentProductId);
     const produtoDoc = await getDocs(query(collection(db, "produtos"), where("__name__", "==", currentProductId)));
     
-    let urlsAtualizadas = [];
+    let fotosAtualizadas = [];
     
     if (!produtoDoc.empty) {
       const produtoAtual = produtoDoc.docs[0].data();
-      // Manter URLs existentes
-      urlsAtualizadas = [...(produtoAtual.fotos || [])];
+      // Manter imagens existentes
+      fotosAtualizadas = [...(produtoAtual.fotos || [])];
     }
     
-    // Adicionar novas URLs
-    urlsAtualizadas = [...urlsAtualizadas, ...editFotoUrls];
+    // Adicionar novas imagens (URLs do ImgBB)
+    const novasFotosUrls = editFotoBase64.map(img => img.url);
+    fotosAtualizadas = [...fotosAtualizadas, ...novasFotosUrls];
     
     // Atualizar no Firestore
     await updateDoc(produtoRef, {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
-      fotos: urlsAtualizadas,
+      fotos: fotosAtualizadas,
       atualizadoEm: Timestamp.now(),
       atualizadoPor: auth.currentUser?.email || "desconhecido"
     });
@@ -754,7 +955,10 @@ async function atualizarProduto() {
   }
 }
 
-// Excluir produto - precisa ser global
+// =============================================
+// FUNÇÕES DE EXCLUSÃO
+// =============================================
+
 async function confirmarExclusao(produtoId, numero) {
   if (confirm("Tem certeza que deseja excluir o patrimônio " + numero + "? Esta ação não pode ser desfeita.")) {
     try {
@@ -790,13 +994,18 @@ async function excluirProduto(produtoId) {
   }
 }
 
-// Salvar novo produto
+// =============================================
+// SALVAR NOVO PRODUTO
+// =============================================
+
 async function salvarProduto() {
   const numero = document.getElementById("numero");
   const equipamento = document.getElementById("equipamento");
   const setor = document.getElementById("setor");
   const preview = document.getElementById("preview");
   const saveError = document.getElementById("saveError");
+  const uploadStatus = document.getElementById("uploadStatus");
+  const statusText = document.getElementById("statusText");
   
   const numeroVal = numero.value.trim();
   const equipamentoVal = equipamento.value.trim();
@@ -814,24 +1023,34 @@ async function salvarProduto() {
     return;
   }
   
+  // Verificar se há imagens sendo processadas
+  if (uploadStatus && uploadStatus.style.display === 'block') {
+    alert("Aguarde o upload das imagens terminar antes de salvar.");
+    return;
+  }
+  
   try {
     if (saveError) saveError.style.display = "none";
+    
+    // Extrair apenas URLs do ImgBB
+    const fotosUrls = fotoBase64.map(img => img.url);
     
     await addDoc(collection(db, "produtos"), {
       numero: numeroVal,
       equipamento: equipamentoVal,
       setor: setorVal,
-      fotos: fotoUrls,
+      fotos: fotosUrls,
       timestamp: Timestamp.now(),
       criadoPor: auth.currentUser?.email || "desconhecido"
     });
     
-    // Limpar campos
+    // Limpar tudo
     numero.value = "";
     equipamento.value = "";
     setor.value = "";
-    fotoUrls = [];
+    fotoBase64 = [];
     if (preview) preview.innerHTML = "";
+    document.getElementById("photoUpload").value = "";
     
     // Recarregar lista
     currentPage = 1;
@@ -850,89 +1069,14 @@ async function salvarProduto() {
   }
 }
 
-// Carregar Uploadcare após a página carregar
-window.addEventListener('load', function() {
-  // Configurar chave do Uploadcare
-  if (typeof UPLOADCARE_PUBLIC_KEY === 'undefined') {
-    window.UPLOADCARE_PUBLIC_KEY = "a4d223bddcdb3028ec83";
-  }
-  
-  // Carregar script do Uploadcare
-  const script = document.createElement('script');
-  script.src = 'https://ucarecdn.com/libs/widget/3.x/uploadcare.full.min.js';
-  script.onload = function() {
-    console.log('Uploadcare carregado');
-    
-    // Widget para novo produto
-    const uploadcareWidget = document.getElementById("uploadcare");
-    if (uploadcareWidget && window.uploadcare) {
-      const widget = uploadcare.Widget(uploadcareWidget);
-      
-      widget.onChange(function(file) {
-        if (file) {
-          file.done(function(fileInfo) {
-            if (fileInfo && fileInfo.cdnUrl) {
-              const imageUrl = fileInfo.cdnUrl;
-              fotoUrls.push(imageUrl);
-              
-              const preview = document.getElementById("preview");
-              if (preview) {
-                const escapedUrl = imageUrl.replace(/'/g, "\\'");
-                const escapedArray = JSON.stringify(fotoUrls).replace(/'/g, "\\'");
-                
-                preview.innerHTML += `
-                  <div class="photo-wrapper">
-                    <img src="${imageUrl}" 
-                         class="photo-thumbnail" 
-                         onclick="visualizarImagem('${escapedUrl}', ${fotoUrls.length - 1}, '${escapedArray}')"
-                         title="Clique para ampliar">
-                  </div>`;
-              }
-            }
-          });
-        }
-      });
-    }
-    
-    // Widget para edição
-    const editUploadcareWidget = document.getElementById("editUploadcare");
-    if (editUploadcareWidget && window.uploadcare) {
-      const editWidget = uploadcare.Widget(editUploadcareWidget);
-      
-      editWidget.onChange(function(file) {
-        if (file) {
-          file.done(function(fileInfo) {
-            if (fileInfo && fileInfo.cdnUrl) {
-              const imageUrl = fileInfo.cdnUrl;
-              editFotoUrls.push(imageUrl);
-              
-              const editPreview = document.getElementById("editPreview");
-              if (editPreview) {
-                const escapedUrl = imageUrl.replace(/'/g, "\\'");
-                const escapedArray = JSON.stringify([...editFotoUrls]).replace(/'/g, "\\'");
-                
-                editPreview.innerHTML += `
-                  <div class="photo-wrapper">
-                    <img src="${imageUrl}" 
-                         class="photo-thumbnail" 
-                         onclick="visualizarImagem('${escapedUrl}', ${editFotoUrls.length - 1}, '${escapedArray}')"
-                         title="Clique para ampliar">
-                  </div>`;
-              }
-            }
-          });
-        }
-      });
-    }
-  };
-  
-  document.head.appendChild(script);
-});
+// =============================================
+// EXPORTAR FUNÇÕES PARA ESCOPO GLOBAL
+// =============================================
 
-// Exportar funções para o escopo global
 window.editarProduto = editarProduto;
 window.confirmarExclusao = confirmarExclusao;
-window.visualizarImagem = visualizarImagem;
+window.visualizarImagemModal = visualizarImagemModal;
+window.visualizarImagemFromArray = visualizarImagemFromArray;
 window.navImage = navImage;
 window.fecharModalImagem = fecharModalImagem;
 </script>
