@@ -490,7 +490,10 @@ let currentHistoryProductId = null;
 let cameraStream = null;
 let currentCameraMode = 'new'; // 'new' ou 'edit'
 
-// Configurar eventos quando o DOM carregar
+// =============================================
+// INICIALIZAÇÃO
+// =============================================
+
 document.addEventListener('DOMContentLoaded', function() {
   console.log('DOM carregado');
   setupEventListeners();
@@ -533,9 +536,21 @@ function setupEventListeners() {
     carregarProdutos();
   });
   
-  // Câmera
-  if (cameraBtn) cameraBtn.addEventListener('click', () => abrirCamera('new'));
-  if (editCameraBtn) editCameraBtn.addEventListener('click', () => abrirCamera('edit'));
+  // Câmera - CORREÇÃO: Adicionar os event listeners corretamente
+  if (cameraBtn) {
+    cameraBtn.addEventListener('click', function() {
+      console.log('Botão câmera clicado');
+      abrirCamera('new');
+    });
+  }
+  
+  if (editCameraBtn) {
+    editCameraBtn.addEventListener('click', function() {
+      console.log('Botão câmera edição clicado');
+      abrirCamera('edit');
+    });
+  }
+  
   if (captureBtn) captureBtn.addEventListener('click', capturarFoto);
   if (retakeBtn) retakeBtn.addEventListener('click', retomarCamera);
   if (usePhotoBtn) usePhotoBtn.addEventListener('click', usarFoto);
@@ -642,6 +657,7 @@ function setupEventListeners() {
 // =============================================
 
 async function abrirCamera(mode) {
+  console.log('Abrindo câmera no modo:', mode);
   currentCameraMode = mode;
   
   try {
@@ -664,10 +680,11 @@ async function abrirCamera(mode) {
     video.style.display = 'block';
     
     document.getElementById('cameraModal').style.display = 'flex';
+    console.log('Câmera aberta com sucesso');
     
   } catch (error) {
     console.error('Erro ao acessar câmera:', error);
-    alert('Não foi possível acessar a câmera. Verifique as permissões.');
+    alert('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
   }
 }
 
@@ -1346,24 +1363,643 @@ onAuthStateChanged(auth, user => {
 });
 
 // =============================================
-// FUNÇÕES DO FIRESTORE (restantes - mantidas do código anterior)
+// FUNÇÕES DO FIRESTORE (CRUD)
 // =============================================
 
-// [As funções restantes são as mesmas do código anterior:
-// carregarProdutos, getTotalCount, atualizarListaProdutos, 
-// buscarProdutos, proximaPagina, paginaAnterior,
-// visualizarImagemFromArray, visualizarImagemFromList,
-// visualizarImagemModalComTodas, navImage, fecharModalImagem,
-// abrirModalEdicao, fecharModalEdicao, editarProduto, atualizarProduto,
-// abrirModalHistorico, fecharModalHistorico, carregarHistorico,
-// adicionarEntradaHistorico, confirmarExclusao, excluirProduto,
-// salvarProduto]
+async function carregarProdutos() {
+  const lista = document.getElementById("lista");
+  const loadError = document.getElementById("loadError");
+  const pagination = document.getElementById("pagination");
+  const pageInfo = document.getElementById("pageInfo");
+  
+  if (!lista) return;
+  
+  try {
+    if (loadError) loadError.style.display = "none";
+    
+    let produtosQuery;
+    
+    if (currentPage === 1) {
+      produtosQuery = query(
+        collection(db, "produtos"),
+        orderBy("timestamp", "desc"),
+        limit(itemsPerPage)
+      );
+      lastVisible = null;
+    } else {
+      produtosQuery = query(
+        collection(db, "produtos"),
+        orderBy("timestamp", "desc"),
+        startAfter(lastVisible),
+        limit(itemsPerPage)
+      );
+    }
+    
+    const querySnapshot = await getDocs(produtosQuery);
+    
+    if (!querySnapshot.empty) {
+      lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+    }
+    
+    atualizarListaProdutos(querySnapshot);
+    
+    if (pagination && pageInfo) {
+      const totalCount = await getTotalCount();
+      const totalPages = Math.ceil(totalCount / itemsPerPage);
+      
+      if (totalPages > 1) {
+        pagination.style.display = "block";
+        pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+        
+        const prevPageBtn = document.getElementById("prevPage");
+        const nextPageBtn = document.getElementById("nextPage");
+        if (prevPageBtn) prevPageBtn.disabled = currentPage === 1;
+        if (nextPageBtn) nextPageBtn.disabled = currentPage === totalPages;
+      } else {
+        pagination.style.display = "none";
+      }
+    }
+    
+  } catch (error) {
+    console.error("Erro ao carregar produtos:", error);
+    if (loadError) {
+      loadError.textContent = "Erro ao carregar produtos: " + error.message;
+      loadError.style.display = "block";
+    }
+  }
+}
 
-// Por questão de espaço, mantive apenas as funções principais novas.
-// As outras funções do código anterior devem ser mantidas.
+async function getTotalCount() {
+  const countQuery = query(collection(db, "produtos"));
+  const snapshot = await getCountFromServer(countQuery);
+  return snapshot.data().count;
+}
 
-// ... [resto das funções do código anterior] ...
+function atualizarListaProdutos(querySnapshot) {
+  const lista = document.getElementById("lista");
+  if (!lista) return;
+  
+  lista.innerHTML = "";
+  
+  if (querySnapshot.empty) {
+    lista.innerHTML = '<tr><td colspan="6" style="text-align:center">Nenhum produto cadastrado</td></tr>';
+    return;
+  }
+  
+  querySnapshot.forEach(doc => {
+    const produto = doc.data();
+    const produtoId = doc.id;
+    const fotoUrlsArray = produto.fotos || [];
+    
+    let fotosHTML = "Nenhuma foto";
+    if (fotoUrlsArray.length > 0) {
+      fotosHTML = '<div class="photo-container">';
+      fotoUrlsArray.forEach((url, index) => {
+        fotosHTML += `
+          <div class="photo-wrapper">
+            <img src="${url}" 
+                 class="photo-thumbnail" 
+                 onclick="visualizarImagemFromList('${produtoId}', ${index})"
+                 title="Clique para ampliar"
+                 onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
+          </div>`;
+      });
+      fotosHTML += '</div>';
+    }
+    
+    lista.innerHTML += `
+      <tr id="produto-${produtoId}">
+        <td><strong>${produto.numero || ''}</strong></td>
+        <td>${produto.equipamento || ''}</td>
+        <td>${produto.modelo || '-'}</td>
+        <td>${produto.setor || ''}</td>
+        <td>${fotosHTML}</td>
+        <td>
+          <div class="action-buttons">
+            <button class="btn-history" onclick="abrirModalHistorico('${produtoId}', '${produto.numero || ''} - ${produto.equipamento || ''}')">Histórico</button>
+            <button class="btn-edit" onclick="editarProduto('${produtoId}')">Editar</button>
+            <button class="btn-delete" onclick="confirmarExclusao('${produtoId}', '${produto.numero || ''}')">Excluir</button>
+          </div>
+        </td>
+      </tr>`;
+  });
+}
 
+async function buscarProdutos(termo) {
+  const lista = document.getElementById("lista");
+  const loadError = document.getElementById("loadError");
+  const pagination = document.getElementById("pagination");
+  
+  if (!lista) return;
+  
+  if (!termo || termo.trim() === "") {
+    carregarProdutos();
+    return;
+  }
+  
+  try {
+    if (loadError) loadError.style.display = "none";
+    if (pagination) pagination.style.display = "none";
+    
+    const produtosQuery = query(
+      collection(db, "produtos"),
+      or(
+        where("numero", ">=", termo),
+        where("numero", "<=", termo + "\uf8ff"),
+        where("equipamento", ">=", termo),
+        where("equipamento", "<=", termo + "\uf8ff"),
+        where("modelo", ">=", termo),
+        where("modelo", "<=", termo + "\uf8ff"),
+        where("setor", ">=", termo),
+        where("setor", "<=", termo + "\uf8ff")
+      )
+    );
+    
+    const querySnapshot = await getDocs(produtosQuery);
+    atualizarListaProdutos(querySnapshot);
+    
+  } catch (error) {
+    console.error("Erro na busca:", error);
+    if (loadError) {
+      loadError.textContent = "Erro na busca: " + error.message;
+      loadError.style.display = "block";
+    }
+  }
+}
+
+async function proximaPagina() {
+  currentPage++;
+  await carregarProdutos();
+}
+
+async function paginaAnterior() {
+  if (currentPage > 1) {
+    currentPage--;
+    await carregarProdutos();
+  }
+}
+
+// =============================================
+// FUNÇÕES DE VISUALIZAÇÃO DE IMAGENS
+// =============================================
+
+function visualizarImagemFromArray(index) {
+  if (!fotoBase64[index]) return;
+  const url = fotoBase64[index].url || fotoBase64[index].localPreview;
+  visualizarImagemModalComTodas([url], 0);
+}
+
+function visualizarImagemFromList(produtoId, index) {
+  const container = document.querySelector(`#produto-${produtoId} .photo-container`);
+  if (!container) return;
+  
+  const images = container.querySelectorAll('img');
+  const imageUrls = [];
+  images.forEach(img => {
+    imageUrls.push(img.src);
+  });
+  
+  visualizarImagemModalComTodas(imageUrls, index);
+}
+
+function visualizarImagemModalComTodas(imageUrls, startIndex) {
+  currentImages = imageUrls;
+  currentImageIndex = startIndex;
+  
+  const modalImage = document.getElementById("modalImage");
+  const imageCounter = document.getElementById("imageCounter");
+  const imageModal = document.getElementById("imageModal");
+  const prevBtn = document.querySelector('.image-nav.prev');
+  const nextBtn = document.querySelector('.image-nav.next');
+  
+  if (modalImage && imageCounter && imageModal) {
+    modalImage.src = currentImages[currentImageIndex];
+    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
+    imageModal.style.display = "flex";
+    
+    if (prevBtn && nextBtn) {
+      prevBtn.style.display = currentImages.length > 1 ? 'flex' : 'none';
+      nextBtn.style.display = currentImages.length > 1 ? 'flex' : 'none';
+    }
+  }
+}
+
+function navImage(direction) {
+  if (!currentImages || !currentImages.length) return;
+  
+  currentImageIndex += direction;
+  
+  if (currentImageIndex < 0) {
+    currentImageIndex = currentImages.length - 1;
+  } else if (currentImageIndex >= currentImages.length) {
+    currentImageIndex = 0;
+  }
+  
+  const modalImage = document.getElementById("modalImage");
+  const imageCounter = document.getElementById("imageCounter");
+  
+  if (modalImage && imageCounter) {
+    modalImage.src = currentImages[currentImageIndex];
+    imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
+  }
+}
+
+function fecharModalImagem() {
+  const imageModal = document.getElementById("imageModal");
+  if (imageModal) {
+    imageModal.style.display = "none";
+  }
+  currentImages = [];
+  currentImageIndex = 0;
+}
+
+// =============================================
+// FUNÇÕES DE EDIÇÃO
+// =============================================
+
+function abrirModalEdicao(produtoId, produto) {
+  currentProductId = produtoId;
+  
+  document.getElementById("editNumero").value = produto.numero || "";
+  document.getElementById("editEquipamento").value = produto.equipamento || "";
+  document.getElementById("editSetor").value = produto.setor || "";
+  document.getElementById("editModelo").value = produto.modelo || "";
+  document.getElementById("editConfiguracao").value = produto.configuracao || "";
+  
+  const editCurrentPhotos = document.getElementById("editCurrentPhotos");
+  editCurrentPhotos.innerHTML = "<strong>Fotos atuais:</strong><br>";
+  
+  if (produto.fotos && produto.fotos.length > 0) {
+    editCurrentPhotos.innerHTML += '<div class="photo-container">';
+    produto.fotos.forEach((url, index) => {
+      editCurrentPhotos.innerHTML += `
+        <div class="photo-wrapper">
+          <img src="${url}" 
+               class="photo-thumbnail" 
+               onclick="visualizarImagemModalComTodas([${produto.fotos.map(f => `'${f}'`).join(',')}], ${index})"
+               title="Clique para ampliar"
+               onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
+        </div>`;
+    });
+    editCurrentPhotos.innerHTML += '</div>';
+  } else {
+    editCurrentPhotos.innerHTML += "Nenhuma foto";
+  }
+  
+  editFotoBase64 = [];
+  document.getElementById("editPreview").innerHTML = "";
+  document.getElementById("editPhotoUpload").value = "";
+  
+  document.getElementById("editModal").style.display = "flex";
+}
+
+function fecharModalEdicao() {
+  document.getElementById("editModal").style.display = "none";
+  currentProductId = null;
+  editFotoBase64 = [];
+  document.getElementById("editPreview").innerHTML = "";
+  const editError = document.getElementById("editError");
+  if (editError) editError.style.display = "none";
+}
+
+async function editarProduto(produtoId) {
+  try {
+    const produtoRef = doc(db, "produtos", produtoId);
+    const produtoDoc = await getDoc(produtoRef);
+    
+    if (produtoDoc.exists()) {
+      const produto = produtoDoc.data();
+      abrirModalEdicao(produtoId, produto);
+    }
+  } catch (error) {
+    console.error("Erro ao buscar produto para edição:", error);
+    alert("Erro ao carregar produto para edição: " + error.message);
+  }
+}
+
+async function atualizarProduto() {
+  const editNumero = document.getElementById("editNumero");
+  const editEquipamento = document.getElementById("editEquipamento");
+  const editSetor = document.getElementById("editSetor");
+  const editModelo = document.getElementById("editModelo");
+  const editConfiguracao = document.getElementById("editConfiguracao");
+  const editError = document.getElementById("editError");
+  
+  if (!currentProductId) return;
+  
+  const numeroVal = editNumero.value.trim();
+  const equipamentoVal = editEquipamento.value.trim();
+  const setorVal = editSetor.value.trim();
+  const modeloVal = editModelo.value.trim();
+  const configuracaoVal = editConfiguracao.value.trim();
+  
+  if (!numeroVal) {
+    alert("Por favor, insira o número do patrimônio");
+    editNumero.focus();
+    return;
+  }
+  
+  if (!equipamentoVal) {
+    alert("Por favor, insira o equipamento");
+    editEquipamento.focus();
+    return;
+  }
+  
+  try {
+    if (editError) editError.style.display = "none";
+    
+    const produtoRef = doc(db, "produtos", currentProductId);
+    const produtoDoc = await getDoc(produtoRef);
+    
+    let fotosAtualizadas = [];
+    
+    if (produtoDoc.exists()) {
+      const produtoAtual = produtoDoc.data();
+      fotosAtualizadas = [...(produtoAtual.fotos || [])];
+    }
+    
+    const novasFotosUrls = editFotoBase64.map(img => img.url);
+    fotosAtualizadas = [...fotosAtualizadas, ...novasFotosUrls];
+    
+    await updateDoc(produtoRef, {
+      numero: numeroVal,
+      equipamento: equipamentoVal,
+      setor: setorVal,
+      modelo: modeloVal,
+      configuracao: configuracaoVal,
+      fotos: fotosAtualizadas,
+      atualizadoEm: Timestamp.now(),
+      atualizadoPor: auth.currentUser?.email || "desconhecido"
+    });
+    
+    fecharModalEdicao();
+    await carregarProdutos();
+    
+    alert("✅ Produto atualizado com sucesso!");
+    
+  } catch (error) {
+    console.error("Erro ao atualizar produto:", error);
+    if (editError) {
+      editError.textContent = "Erro ao atualizar: " + error.message;
+      editError.style.display = "block";
+    }
+    alert("❌ Erro ao atualizar produto: " + error.message);
+  }
+}
+
+// =============================================
+// FUNÇÕES DE HISTÓRICO DE MANUTENÇÃO
+// =============================================
+
+async function abrirModalHistorico(produtoId, produtoNome) {
+  currentHistoryProductId = produtoId;
+  
+  document.getElementById("historyProductTitle").textContent = produtoNome;
+  document.getElementById("newHistoryEntry").value = "";
+  
+  await carregarHistorico(produtoId);
+  document.getElementById("historyModal").style.display = "flex";
+}
+
+function fecharModalHistorico() {
+  document.getElementById("historyModal").style.display = "none";
+  currentHistoryProductId = null;
+}
+
+async function carregarHistorico(produtoId) {
+  const historyList = document.getElementById("historyList");
+  
+  try {
+    const produtoRef = doc(db, "produtos", produtoId);
+    const produtoDoc = await getDoc(produtoRef);
+    
+    if (produtoDoc.exists()) {
+      const produto = produtoDoc.data();
+      const historico = produto.historico || [];
+      
+      if (historico.length === 0) {
+        historyList.innerHTML = '<p style="text-align:center;color:#666">Nenhuma entrada no histórico</p>';
+        return;
+      }
+      
+      historico.sort((a, b) => new Date(b.data) - new Date(a.data));
+      
+      let html = '';
+      historico.forEach(entry => {
+        const date = new Date(entry.data).toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        
+        html += `
+          <div class="history-item">
+            <div class="history-date">${date}</div>
+            <div class="history-text">${entry.texto}</div>
+            <div class="history-author">Registrado por: ${entry.autor || 'Sistema'}</div>
+          </div>
+        `;
+      });
+      
+      historyList.innerHTML = html;
+    }
+  } catch (error) {
+    console.error("Erro ao carregar histórico:", error);
+    historyList.innerHTML = '<p style="color:red">Erro ao carregar histórico</p>';
+  }
+}
+
+async function adicionarEntradaHistorico() {
+  const newHistoryEntry = document.getElementById("newHistoryEntry");
+  const texto = newHistoryEntry.value.trim();
+  
+  if (!texto) {
+    alert("Por favor, descreva o que foi feito na manutenção");
+    newHistoryEntry.focus();
+    return;
+  }
+  
+  if (!currentHistoryProductId) return;
+  
+  try {
+    const produtoRef = doc(db, "produtos", currentHistoryProductId);
+    const usuario = auth.currentUser?.email || "Sistema";
+    const dataAtual = new Date().toISOString();
+    
+    const novaEntrada = {
+      data: dataAtual,
+      texto: texto,
+      autor: usuario
+    };
+    
+    await updateDoc(produtoRef, {
+      historico: arrayUnion(novaEntrada)
+    });
+    
+    newHistoryEntry.value = "";
+    await carregarHistorico(currentHistoryProductId);
+    
+    alert("✅ Entrada adicionada ao histórico!");
+    
+  } catch (error) {
+    console.error("Erro ao adicionar histórico:", error);
+    alert("❌ Erro ao adicionar entrada: " + error.message);
+  }
+}
+
+// =============================================
+// FUNÇÕES DE EXCLUSÃO
+// =============================================
+
+async function confirmarExclusao(produtoId, numero) {
+  if (confirm("Tem certeza que deseja excluir o patrimônio " + numero + "? Esta ação não pode ser desfeita.")) {
+    try {
+      await excluirProduto(produtoId);
+    } catch (error) {
+      console.error("Erro ao excluir:", error);
+      alert("Erro ao excluir produto: " + error.message);
+    }
+  }
+}
+
+async function excluirProduto(produtoId) {
+  try {
+    await deleteDoc(doc(db, "produtos", produtoId));
+    
+    const elemento = document.getElementById("produto-" + produtoId);
+    if (elemento) {
+      elemento.remove();
+    }
+    
+    const lista = document.getElementById("lista");
+    if (lista && lista.children.length === 1) {
+      carregarProdutos();
+    }
+    
+    alert("✅ Produto excluído com sucesso!");
+    
+  } catch (error) {
+    console.error("Erro ao excluir produto:", error);
+    throw error;
+  }
+}
+
+// =============================================
+// SALVAR NOVO PRODUTO
+// =============================================
+
+async function salvarProduto() {
+  const numero = document.getElementById("numero");
+  const equipamento = document.getElementById("equipamento");
+  const setor = document.getElementById("setor");
+  const modelo = document.getElementById("modelo");
+  const configuracao = document.getElementById("configuracao");
+  const historicoInicial = document.getElementById("historico");
+  const preview = document.getElementById("preview");
+  const saveError = document.getElementById("saveError");
+  const uploadStatus = document.getElementById("uploadStatus");
+  
+  const numeroVal = numero.value.trim();
+  const equipamentoVal = equipamento.value.trim();
+  const setorVal = setor.value.trim();
+  const modeloVal = modelo.value.trim();
+  const configuracaoVal = configuracao.value.trim();
+  const historicoInicialVal = historicoInicial.value.trim();
+  
+  if (!numeroVal) {
+    alert("Por favor, insira o número do patrimônio");
+    numero.focus();
+    return;
+  }
+  
+  if (!equipamentoVal) {
+    alert("Por favor, insira o equipamento");
+    equipamento.focus();
+    return;
+  }
+  
+  if (!setorVal) {
+    alert("Por favor, insira o setor alocado");
+    setor.focus();
+    return;
+  }
+  
+  if (uploadStatus && uploadStatus.style.display === 'block') {
+    alert("Aguarde o upload das imagens terminar antes de salvar.");
+    return;
+  }
+  
+  try {
+    if (saveError) saveError.style.display = "none";
+    
+    // Extrair URLs do ImgBB
+    const fotosUrls = fotoBase64.map(img => img.url);
+    
+    // Preparar histórico inicial se houver
+    let historicoArray = [];
+    if (historicoInicialVal) {
+      historicoArray.push({
+        data: new Date().toISOString(),
+        texto: historicoInicialVal,
+        autor: auth.currentUser?.email || "Sistema"
+      });
+    }
+    
+    await addDoc(collection(db, "produtos"), {
+      numero: numeroVal,
+      equipamento: equipamentoVal,
+      setor: setorVal,
+      modelo: modeloVal,
+      configuracao: configuracaoVal,
+      fotos: fotosUrls,
+      historico: historicoArray,
+      timestamp: Timestamp.now(),
+      criadoPor: auth.currentUser?.email || "desconhecido"
+    });
+    
+    // Limpar tudo
+    numero.value = "";
+    equipamento.value = "";
+    setor.value = "";
+    modelo.value = "";
+    configuracao.value = "";
+    historicoInicial.value = "";
+    fotoBase64 = [];
+    if (preview) preview.innerHTML = "";
+    document.getElementById("photoUpload").value = "";
+    
+    // Recarregar lista
+    currentPage = 1;
+    lastVisible = null;
+    await carregarProdutos();
+    
+    alert("✅ Produto salvo com sucesso!");
+    
+  } catch (error) {
+    console.error("Erro ao salvar produto:", error);
+    if (saveError) {
+      saveError.textContent = "Erro ao salvar: " + error.message;
+      saveError.style.display = "block";
+    }
+    alert("❌ Erro ao salvar produto: " + error.message);
+  }
+}
+
+// =============================================
+// EXPORTAR FUNÇÕES PARA ESCOPO GLOBAL
+// =============================================
+
+window.editarProduto = editarProduto;
+window.confirmarExclusao = confirmarExclusao;
+window.visualizarImagemModalComTodas = visualizarImagemModalComTodas;
+window.visualizarImagemFromArray = visualizarImagemFromArray;
+window.visualizarImagemFromList = visualizarImagemFromList;
+window.navImage = navImage;
+window.fecharModalImagem = fecharModalImagem;
+window.abrirModalHistorico = abrirModalHistorico;
+window.fecharModalHistorico = fecharModalHistorico;
 </script>
 
 </body>
