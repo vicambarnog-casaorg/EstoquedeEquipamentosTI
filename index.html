@@ -103,6 +103,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
   max-width: 400px;
   margin: 0 auto;
   text-align: center;
+  position: relative;
 }
 .camera-preview {
   width: 100%;
@@ -111,14 +112,19 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
   border-radius: 8px;
   overflow: hidden;
   margin-bottom: 10px;
+  position: relative;
 }
 .camera-video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .camera-canvas {
   display: none;
+  width: 100%;
+  height: auto;
+  max-height: 300px;
+  object-fit: contain;
 }
 .camera-controls {
   display: flex;
@@ -273,7 +279,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       </div>
       <br>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button onclick="fecharCamera()" class="btn-cancel">Cancelar</button>
+        <button id="closeCameraBtn" class="btn-cancel">Cancelar</button>
       </div>
     </div>
   </div>
@@ -305,7 +311,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       
       <br>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button onclick="fecharImportModal()" class="btn-cancel">Cancelar</button>
+        <button id="closeImportBtn" class="btn-cancel">Cancelar</button>
         <button id="importBtn" class="btn-import">Importar</button>
       </div>
     </div>
@@ -328,7 +334,7 @@ th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
       
       <br>
       <div style="display:flex;gap:10px;justify-content:flex-end">
-        <button onclick="fecharModalHistorico()" class="btn-cancel">Fechar</button>
+        <button id="closeHistoryBtn" class="btn-cancel">Fechar</button>
       </div>
     </div>
   </div>
@@ -449,6 +455,7 @@ import {
   collection, 
   addDoc, 
   getDocs, 
+  getDoc,
   query, 
   orderBy, 
   deleteDoc, 
@@ -488,7 +495,7 @@ let currentImageIndex = 0;
 let currentImages = [];
 let currentHistoryProductId = null;
 let cameraStream = null;
-let currentCameraMode = 'new'; // 'new' ou 'edit'
+let currentCameraMode = 'new';
 
 // =============================================
 // INICIALIZAÇÃO
@@ -513,12 +520,17 @@ function setupEventListeners() {
   const cameraBtn = document.getElementById("cameraBtn");
   const editCameraBtn = document.getElementById("editCameraBtn");
   
+  // Botões de cancelar CORRIGIDOS
+  const cancelEditBtn = document.getElementById("cancelEditBtn");
+  const closeCameraBtn = document.getElementById("closeCameraBtn");
+  const closeImportBtn = document.getElementById("closeImportBtn");
+  const closeHistoryBtn = document.getElementById("closeHistoryBtn");
+  
   // Upload de fotos
   const photoUpload = document.getElementById("photoUpload");
   const editPhotoUpload = document.getElementById("editPhotoUpload");
   
   // Botões do modal de edição
-  const cancelEditBtn = document.getElementById("cancelEditBtn");
   const updateProductBtn = document.getElementById("updateProductBtn");
   
   // Botões da câmera
@@ -536,17 +548,21 @@ function setupEventListeners() {
     carregarProdutos();
   });
   
-  // Câmera - CORREÇÃO: Adicionar os event listeners corretamente
+  // Botões de cancelar - CORREÇÃO
+  if (cancelEditBtn) cancelEditBtn.addEventListener('click', fecharModalEdicao);
+  if (closeCameraBtn) closeCameraBtn.addEventListener('click', fecharCamera);
+  if (closeImportBtn) closeImportBtn.addEventListener('click', fecharImportModal);
+  if (closeHistoryBtn) closeHistoryBtn.addEventListener('click', fecharModalHistorico);
+  
+  // Câmera
   if (cameraBtn) {
     cameraBtn.addEventListener('click', function() {
-      console.log('Botão câmera clicado');
       abrirCamera('new');
     });
   }
   
   if (editCameraBtn) {
     editCameraBtn.addEventListener('click', function() {
-      console.log('Botão câmera edição clicado');
       abrirCamera('edit');
     });
   }
@@ -585,7 +601,6 @@ function setupEventListeners() {
   }
   
   // Modal de edição
-  if (cancelEditBtn) cancelEditBtn.addEventListener('click', fecharModalEdicao);
   if (updateProductBtn) updateProductBtn.addEventListener('click', atualizarProduto);
   
   // Modal de histórico
@@ -593,35 +608,34 @@ function setupEventListeners() {
     addHistoryBtn.addEventListener('click', adicionarEntradaHistorico);
   }
   
-  // Fechar modais ao clicar fora
+  // Fechar modais ao clicar fora - CORREÇÃO
   const modals = [
-    document.getElementById("editModal"), 
-    document.getElementById("imageModal"), 
-    document.getElementById("historyModal"),
-    document.getElementById("cameraModal"),
-    document.getElementById("importModal")
+    {id: "editModal", closeFn: fecharModalEdicao},
+    {id: "imageModal", closeFn: fecharModalImagem},
+    {id: "historyModal", closeFn: fecharModalHistorico},
+    {id: "cameraModal", closeFn: fecharCamera},
+    {id: "importModal", closeFn: fecharImportModal}
   ];
-  modals.forEach(modal => {
+  
+  modals.forEach(modalInfo => {
+    const modal = document.getElementById(modalInfo.id);
     if (modal) {
       modal.addEventListener('click', function(e) {
         if (e.target === modal) {
-          if (modal.id === "editModal") fecharModalEdicao();
-          if (modal.id === "imageModal") fecharModalImagem();
-          if (modal.id === "historyModal") fecharModalHistorico();
-          if (modal.id === "cameraModal") fecharCamera();
-          if (modal.id === "importModal") fecharImportModal();
+          modalInfo.closeFn();
         }
       });
     }
   });
   
-  // Fechar modais com ESC e navegação com setas
+  // Fechar modais com ESC
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-      fecharModalImagem();
-      fecharModalHistorico();
-      fecharCamera();
-      fecharImportModal();
+      if (document.getElementById("editModal").style.display === 'flex') fecharModalEdicao();
+      if (document.getElementById("imageModal").style.display === 'flex') fecharModalImagem();
+      if (document.getElementById("historyModal").style.display === 'flex') fecharModalHistorico();
+      if (document.getElementById("cameraModal").style.display === 'flex') fecharCamera();
+      if (document.getElementById("importModal").style.display === 'flex') fecharImportModal();
     }
     
     // Navegação com setas no modal de imagem
@@ -657,10 +671,13 @@ function setupEventListeners() {
 // =============================================
 
 async function abrirCamera(mode) {
-  console.log('Abrindo câmera no modo:', mode);
   currentCameraMode = mode;
   
   try {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop());
+    }
+    
     cameraStream = await navigator.mediaDevices.getUserMedia({ 
       video: { 
         facingMode: 'environment',
@@ -673,18 +690,36 @@ async function abrirCamera(mode) {
     const video = document.getElementById('cameraVideo');
     video.srcObject = cameraStream;
     
-    // Resetar controles
     document.getElementById('captureBtn').style.display = 'block';
     document.getElementById('retakeBtn').style.display = 'none';
     document.getElementById('usePhotoBtn').style.display = 'none';
     video.style.display = 'block';
     
+    const canvas = document.getElementById('cameraCanvas');
+    canvas.style.display = 'none';
+    
     document.getElementById('cameraModal').style.display = 'flex';
-    console.log('Câmera aberta com sucesso');
     
   } catch (error) {
     console.error('Erro ao acessar câmera:', error);
-    alert('Não foi possível acessar a câmera. Verifique as permissões do navegador.');
+    
+    // Tentar câmera frontal
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: false 
+      });
+      
+      const video = document.getElementById('cameraVideo');
+      video.srcObject = cameraStream;
+      document.getElementById('cameraModal').style.display = 'flex';
+    } catch (error2) {
+      alert('Não foi possível acessar a câmera. Verifique as permissões.');
+    }
   }
 }
 
@@ -693,15 +728,19 @@ function capturarFoto() {
   const canvas = document.getElementById('cameraCanvas');
   const context = canvas.getContext('2d');
   
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const videoWidth = video.videoWidth;
+  const videoHeight = video.videoHeight;
   
-  // Parar vídeo e mostrar foto
+  // Usar o tamanho real do vídeo
+  canvas.width = videoWidth;
+  canvas.height = videoHeight;
+  
+  // Desenhar a imagem completa
+  context.drawImage(video, 0, 0, videoWidth, videoHeight);
+  
   video.style.display = 'none';
   canvas.style.display = 'block';
   
-  // Mostrar controles
   document.getElementById('captureBtn').style.display = 'none';
   document.getElementById('retakeBtn').style.display = 'block';
   document.getElementById('usePhotoBtn').style.display = 'block';
@@ -721,16 +760,12 @@ function retomarCamera() {
 
 async function usarFoto() {
   const canvas = document.getElementById('cameraCanvas');
-  const base64Image = canvas.toDataURL('image/jpeg', 0.8);
   
   try {
-    // Comprimir imagem
-    const compressedBase64 = await compressBase64Image(base64Image, 100);
-    
-    // Upload para ImgBB
+    const fullQualityBase64 = canvas.toDataURL('image/jpeg', 1.0);
+    const compressedBase64 = await compressBase64Image(fullQualityBase64, 100);
     const imgbbResult = await uploadToImgBB(compressedBase64);
     
-    // Adicionar ao array correto
     if (currentCameraMode === 'new') {
       fotoBase64.push({
         url: imgbbResult.url,
@@ -738,7 +773,6 @@ async function usarFoto() {
         localPreview: compressedBase64
       });
       
-      // Adicionar preview
       const preview = document.getElementById('preview');
       const index = fotoBase64.length - 1;
       preview.innerHTML += `
@@ -757,7 +791,6 @@ async function usarFoto() {
         localPreview: compressedBase64
       });
       
-      // Adicionar preview
       const preview = document.getElementById('editPreview');
       const index = editFotoBase64.length - 1;
       preview.innerHTML += `
@@ -791,7 +824,10 @@ function fecharCamera() {
   document.getElementById('cameraModal').style.display = 'none';
 }
 
-// Função auxiliar para comprimir base64
+// =============================================
+// FUNÇÕES DE COMPRESSÃO
+// =============================================
+
 async function compressBase64Image(base64Image, maxSizeKB = 100) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -815,32 +851,46 @@ async function compressBase64Image(base64Image, maxSizeKB = 100) {
       canvas.height = height;
       
       const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
       
-      let quality = 0.8;
-      let result;
+      let quality = 0.9;
+      let compressedBase64;
+      let attempts = 0;
+      const maxAttempts = 6;
       
-      for (let i = 0; i < 5; i++) {
-        result = canvas.toDataURL('image/jpeg', quality);
-        const sizeKB = (result.length * 3) / 4 / 1024;
+      while (attempts < maxAttempts) {
+        compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        const sizeKB = Math.round((compressedBase64.length * 3) / 4 / 1024);
         
-        if (sizeKB <= maxSizeKB || quality <= 0.3) {
+        if (sizeKB <= maxSizeKB || quality <= 0.4) {
           break;
         }
-        quality -= 0.15;
+        
+        quality -= 0.1;
+        attempts++;
       }
       
-      if ((result.length * 3) / 4 / 1024 > maxSizeKB) {
-        canvas.width = Math.round(width * 0.7);
-        canvas.height = Math.round(height * 0.7);
+      if (Math.round((compressedBase64.length * 3) / 4 / 1024) > maxSizeKB) {
+        const reductionFactor = 0.8;
+        canvas.width = Math.round(width * reductionFactor);
+        canvas.height = Math.round(height * reductionFactor);
+        
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        result = canvas.toDataURL('image/jpeg', 0.6);
+        
+        compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
       }
       
-      resolve(result);
+      resolve(compressedBase64);
     };
     
-    img.onerror = reject;
+    img.onerror = () => {
+      reject(new Error('Falha ao processar imagem'));
+    };
+    
     img.src = base64Image;
   });
 }
@@ -867,14 +917,8 @@ function baixarModeloExcel() {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Modelo Patrimônio TI");
   
-  // Estilizar (largura das colunas)
   const wscols = [
-    {wch: 12}, // Número
-    {wch: 15}, // Equipamento
-    {wch: 15}, // Setor
-    {wch: 20}, // Modelo
-    {wch: 30}, // Configuração
-    {wch: 40}  // Histórico
+    {wch: 12}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 30}, {wch: 40}
   ];
   ws['!cols'] = wscols;
   
@@ -883,7 +927,6 @@ function baixarModeloExcel() {
 
 async function exportarParaExcel() {
   try {
-    // Buscar todos os produtos
     const produtosQuery = query(collection(db, "produtos"), orderBy("timestamp", "desc"));
     const querySnapshot = await getDocs(produtosQuery);
     
@@ -892,7 +935,6 @@ async function exportarParaExcel() {
       return;
     }
     
-    // Preparar dados
     const dados = [
       ['Número', 'Equipamento', 'Setor', 'Modelo', 'Configuração', 'Fotos', 'Histórico', 'Criado em', 'Criado por']
     ];
@@ -900,7 +942,6 @@ async function exportarParaExcel() {
     querySnapshot.forEach(doc => {
       const produto = doc.data();
       
-      // Formatar histórico
       let historicoFormatado = '';
       if (produto.historico && Array.isArray(produto.historico)) {
         historicoFormatado = produto.historico.map(entry => {
@@ -909,7 +950,6 @@ async function exportarParaExcel() {
         }).join('; ');
       }
       
-      // Formatar fotos
       let fotosFormatado = '';
       if (produto.fotos && Array.isArray(produto.fotos)) {
         fotosFormatado = produto.fotos.join('; ');
@@ -928,26 +968,16 @@ async function exportarParaExcel() {
       ]);
     });
     
-    // Criar planilha
     const ws = XLSX.utils.aoa_to_sheet(dados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Patrimônio TI");
     
-    // Ajustar largura das colunas
     const wscols = [
-      {wch: 12}, // Número
-      {wch: 15}, // Equipamento
-      {wch: 15}, // Setor
-      {wch: 20}, // Modelo
-      {wch: 30}, // Configuração
-      {wch: 50}, // Fotos
-      {wch: 50}, // Histórico
-      {wch: 15}, // Criado em
-      {wch: 20}  // Criado por
+      {wch: 12}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 30}, 
+      {wch: 50}, {wch: 50}, {wch: 15}, {wch: 20}
     ];
     ws['!cols'] = wscols;
     
-    // Exportar
     XLSX.writeFile(wb, `patrimonio_ti_${new Date().toISOString().split('T')[0]}.xlsx`);
     
     alert(`✅ ${querySnapshot.size} produtos exportados com sucesso!`);
@@ -992,7 +1022,6 @@ async function importarDoExcel() {
       throw new Error('Arquivo vazio ou formato inválido');
     }
     
-    // Validar cabeçalhos
     const headers = data[0];
     const requiredHeaders = ['Número', 'Equipamento', 'Setor'];
     
@@ -1002,17 +1031,15 @@ async function importarDoExcel() {
       }
     }
     
-    // Processar linhas
     const produtos = [];
     let sucesso = 0;
     let erro = 0;
     
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      if (row.every(cell => !cell)) continue; // Pular linhas vazias
+      if (row.every(cell => !cell)) continue;
       
       try {
-        // Mapear colunas
         const numeroIndex = headers.indexOf('Número');
         const equipamentoIndex = headers.indexOf('Equipamento');
         const setorIndex = headers.indexOf('Setor');
@@ -1031,12 +1058,10 @@ async function importarDoExcel() {
           criadoPor: auth.currentUser?.email || "Importação Excel"
         };
         
-        // Validar campos obrigatórios
         if (!produto.numero || !produto.equipamento || !produto.setor) {
           throw new Error('Campos obrigatórios faltando');
         }
         
-        // Adicionar histórico inicial se houver
         const historicoInicial = row[historicoIndex]?.toString().trim();
         if (historicoInicial) {
           produto.historico = [{
@@ -1050,19 +1075,16 @@ async function importarDoExcel() {
         sucesso++;
         
       } catch (error) {
-        console.error(`Erro na linha ${i + 1}:`, error);
         erro++;
       }
     }
     
-    // Salvar no Firestore
     if (produtos.length > 0) {
       for (const produto of produtos) {
         await addDoc(collection(db, "produtos"), produto);
       }
     }
     
-    // Mostrar resumo
     importStatus.className = 'import-status success';
     importStatus.innerHTML = `✅ Importação concluída!`;
     importStatus.style.display = 'block';
@@ -1074,7 +1096,6 @@ async function importarDoExcel() {
     `;
     importSummary.style.display = 'block';
     
-    // Recarregar lista
     setTimeout(() => {
       carregarProdutos();
       fecharImportModal();
@@ -1096,13 +1117,8 @@ function readExcelFile(file) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        
-        // Pegar primeira planilha
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        
-        // Converter para array
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-        
         resolve(jsonData);
       } catch (error) {
         reject(error);
@@ -1111,7 +1127,6 @@ function readExcelFile(file) {
     
     reader.onerror = reject;
     
-    // Ler arquivo
     if (file.name.endsWith('.csv')) {
       reader.readAsText(file);
     } else {
@@ -1121,7 +1136,7 @@ function readExcelFile(file) {
 }
 
 // =============================================
-// FUNÇÕES DE COMPRESSÃO E UPLOAD DE IMAGENS
+// FUNÇÕES DE UPLOAD DE IMAGENS
 // =============================================
 
 async function compressImage(file, maxSizeKB = 100) {
@@ -1934,10 +1949,8 @@ async function salvarProduto() {
   try {
     if (saveError) saveError.style.display = "none";
     
-    // Extrair URLs do ImgBB
     const fotosUrls = fotoBase64.map(img => img.url);
     
-    // Preparar histórico inicial se houver
     let historicoArray = [];
     if (historicoInicialVal) {
       historicoArray.push({
@@ -1970,7 +1983,6 @@ async function salvarProduto() {
     if (preview) preview.innerHTML = "";
     document.getElementById("photoUpload").value = "";
     
-    // Recarregar lista
     currentPage = 1;
     lastVisible = null;
     await carregarProdutos();
@@ -2001,6 +2013,5 @@ window.fecharModalImagem = fecharModalImagem;
 window.abrirModalHistorico = abrirModalHistorico;
 window.fecharModalHistorico = fecharModalHistorico;
 </script>
-
 </body>
 </html>
