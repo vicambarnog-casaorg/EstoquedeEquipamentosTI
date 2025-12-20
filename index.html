@@ -26,6 +26,7 @@
             overflow-x: hidden;
             padding: 0;
             margin: 0;
+            min-height: 100vh;
         }
         
         /* ====== HEADER MOBILE ====== */
@@ -941,14 +942,9 @@
     <!-- BIBLIOTECAS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
-    <!-- FIREBASE E JAVASCRIPT ORIGINAL (mantenha SEU código original aqui) -->
+    <!-- FIREBASE E JAVASCRIPT -->
     <script type="module">
-    // ====== SEU CÓDIGO FIREBASE ORIGINAL ======
-    // COLE AQUI TODO O SEU CÓDIGO JavaScript ORIGINAL
-    // desde "import { initializeApp }" até o final
-    // NÃO MODIFIQUE as funções, apenas o CSS já está otimizado!
-    
-    // Import Firebase
+    // ====== CONFIGURAÇÃO FIREBASE ======
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { 
@@ -1027,21 +1023,6 @@
             setTimeout(() => document.body.removeChild(toast), 300);
         }, 3000);
     }
-
-    // Adicionar estilos de animação
-    const toastStyle = document.createElement('style');
-    toastStyle.textContent = `
-        @keyframes slideDown {
-            from { transform: translate(-50%, -100%); opacity: 0; }
-            to { transform: translate(-50%, 0); opacity: 1; }
-        }
-        
-        @keyframes slideUp {
-            from { transform: translate(-50%, 0); opacity: 1; }
-            to { transform: translate(-50%, -100%); opacity: 0; }
-        }
-    `;
-    document.head.appendChild(toastStyle);
 
     // ====== INICIALIZAÇÃO MOBILE ======
     document.addEventListener('DOMContentLoaded', function() {
@@ -1124,11 +1105,11 @@
                     
                     // Swipe para baixo > 100px fecha o modal
                     if (diff > 100) {
-                        if (modal.id === 'editModal') window.fecharModalEdicao();
-                        else if (modal.id === 'historyModal') window.fecharModalHistorico();
-                        else if (modal.id === 'imageModal') window.fecharModalImagem();
-                        else if (modal.id === 'cameraModal') window.fecharCamera();
-                        else if (modal.id === 'importModal') window.fecharImportModal();
+                        if (modal.id === 'editModal') fecharModalEdicao();
+                        else if (modal.id === 'historyModal') fecharModalHistorico();
+                        else if (modal.id === 'imageModal') fecharModalImagem();
+                        else if (modal.id === 'cameraModal') fecharCamera();
+                        else if (modal.id === 'importModal') fecharImportModal();
                         
                         startY = null;
                     }
@@ -1141,7 +1122,7 @@
         if (downloadModeloLink) {
             downloadModeloLink.addEventListener('click', function(e) {
                 e.preventDefault();
-                window.baixarModeloExcel(e);
+                baixarModeloExcel(e);
             });
         }
         
@@ -1149,11 +1130,7 @@
         setupEventListeners();
     });
 
-    // ====== SUAS FUNÇÕES ORIGINAIS ======
-    // COLE AQUI TODAS AS SUAS FUNÇÕES ORIGINAIS
-    // desde "function setupEventListeners()" até o final do arquivo
-    // Mantenha TUDO igual, só o CSS foi melhorado!
-    
+    // ====== FUNÇÕES PRINCIPAIS ======
     function setupEventListeners() {
         // Botões principais
         const loginBtn = document.getElementById("loginBtn");
@@ -1315,9 +1292,7 @@
         }
     }
 
-    // ====== MODIFICAR FUNÇÕES PARA USAR MOBILE TOAST ======
-    // Substitua alert() por showMobileToast() nas funções principais
-    
+    // ====== AUTENTICAÇÃO ======
     async function login() {
         const emailInput = document.getElementById("email");
         const passwordInput = document.getElementById("password");
@@ -1349,6 +1324,644 @@
         }
     }
 
+    async function logout() {
+        try {
+            await signOut(auth);
+            showMobileToast('Logout realizado!', 'success');
+        } catch (error) {
+            console.error("Erro ao sair:", error);
+        }
+    }
+
+    // ====== FUNÇÕES DE CÂMERA ======
+    async function abrirCamera(mode) {
+        currentCameraMode = mode;
+        
+        try {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            
+            cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false 
+            });
+            
+            const video = document.getElementById('cameraVideo');
+            video.srcObject = cameraStream;
+            
+            document.getElementById('captureBtn').style.display = 'block';
+            document.getElementById('retakeBtn').style.display = 'none';
+            document.getElementById('usePhotoBtn').style.display = 'none';
+            video.style.display = 'block';
+            
+            const canvas = document.getElementById('cameraCanvas');
+            canvas.style.display = 'none';
+            
+            document.getElementById('cameraModal').style.display = 'flex';
+            
+        } catch (error) {
+            console.error('Erro ao acessar câmera:', error);
+            showMobileToast('Não foi possível acessar a câmera. Use a galeria.', 'error');
+            
+            // Fallback para galeria
+            if (mode === 'new') {
+                document.getElementById('photoUpload').click();
+            } else {
+                document.getElementById('editPhotoUpload').click();
+            }
+        }
+    }
+
+    function capturarFoto() {
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('cameraCanvas');
+        const context = canvas.getContext('2d');
+        
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+        
+        context.drawImage(video, 0, 0, videoWidth, videoHeight);
+        
+        video.style.display = 'none';
+        canvas.style.display = 'block';
+        
+        document.getElementById('captureBtn').style.display = 'none';
+        document.getElementById('retakeBtn').style.display = 'block';
+        document.getElementById('usePhotoBtn').style.display = 'block';
+    }
+
+    function retomarCamera() {
+        const video = document.getElementById('cameraVideo');
+        const canvas = document.getElementById('cameraCanvas');
+        
+        video.style.display = 'block';
+        canvas.style.display = 'none';
+        
+        document.getElementById('captureBtn').style.display = 'block';
+        document.getElementById('retakeBtn').style.display = 'none';
+        document.getElementById('usePhotoBtn').style.display = 'none';
+    }
+
+    async function usarFoto() {
+        const canvas = document.getElementById('cameraCanvas');
+        const cameraPreview = document.querySelector('.camera-preview');
+        
+        // Mostrar indicador de processamento
+        const processingDiv = document.createElement('div');
+        processingDiv.className = 'camera-processing';
+        processingDiv.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            border-radius: 8px;
+        `;
+        processingDiv.innerHTML = `
+            <div class="loading-spinner"></div>
+            <div style="margin-top: 10px; font-size: 14px;">Processando foto...</div>
+        `;
+        cameraPreview.appendChild(processingDiv);
+        
+        // Desabilitar botões durante o processamento
+        document.getElementById('usePhotoBtn').disabled = true;
+        document.getElementById('retakeBtn').disabled = true;
+        
+        try {
+            // Capturar a foto com qualidade reduzida
+            const base64Image = canvas.toDataURL('image/jpeg', 0.7);
+            
+            // Processar em segundo plano
+            setTimeout(async () => {
+                try {
+                    // Compressão otimizada
+                    const compressedBase64 = await compressBase64ImageFast(base64Image, 150);
+                    
+                    // Upload para ImgBB
+                    const imgbbResult = await uploadToImgBB(compressedBase64);
+                    
+                    // Adicionar ao array correto
+                    if (currentCameraMode === 'new') {
+                        fotoBase64.push({
+                            url: imgbbResult.url,
+                            thumb: imgbbResult.thumb,
+                            localPreview: compressedBase64
+                        });
+                        
+                        // Adicionar preview
+                        const preview = document.getElementById('preview');
+                        const index = fotoBase64.length - 1;
+                        preview.innerHTML += `
+                            <div class="photo-wrapper">
+                                <img src="${compressedBase64}" 
+                                     class="photo-thumbnail" 
+                                     data-index="${index}"
+                                     data-url="${imgbbResult.url}"
+                                     onclick="visualizarImagemFromArray(${index})"
+                                     title="Clique para ampliar">
+                            </div>`;
+                    } else if (currentCameraMode === 'edit') {
+                        editFotoBase64.push({
+                            url: imgbbResult.url,
+                            thumb: imgbbResult.thumb,
+                            localPreview: compressedBase64
+                        });
+                        
+                        // Adicionar preview
+                        const preview = document.getElementById('editPreview');
+                        const index = editFotoBase64.length - 1;
+                        preview.innerHTML += `
+                            <div class="photo-wrapper">
+                                <img src="${compressedBase64}" 
+                                     class="photo-thumbnail" 
+                                     data-index="${index}"
+                                     data-url="${imgbbResult.url}"
+                                     onclick="visualizarImagemFromArray(${index})"
+                                     title="Clique para ampliar">
+                            </div>`;
+                    }
+                    
+                    // Remover indicador de processamento
+                    cameraPreview.removeChild(processingDiv);
+                    
+                    // Reabilitar botões
+                    document.getElementById('usePhotoBtn').disabled = false;
+                    document.getElementById('retakeBtn').disabled = false;
+                    
+                    fecharCamera();
+                    showMobileToast('Foto adicionada com sucesso!', 'success');
+                    
+                } catch (error) {
+                    console.error('Erro ao processar foto:', error);
+                    
+                    // Remover indicador de processamento
+                    cameraPreview.removeChild(processingDiv);
+                    
+                    // Reabilitar botões
+                    document.getElementById('usePhotoBtn').disabled = false;
+                    document.getElementById('retakeBtn').disabled = false;
+                    
+                    showMobileToast('❌ Erro ao processar foto. Tente novamente.', 'error');
+                }
+            }, 100);
+            
+        } catch (error) {
+            console.error('Erro inicial ao processar foto:', error);
+            
+            // Remover indicador de processamento se existir
+            if (cameraPreview.contains(processingDiv)) {
+                cameraPreview.removeChild(processingDiv);
+            }
+            
+            // Reabilitar botões
+            document.getElementById('usePhotoBtn').disabled = false;
+            document.getElementById('retakeBtn').disabled = false;
+            
+            showMobileToast('❌ Erro ao processar foto: ' + error.message, 'error');
+        }
+    }
+
+    function fecharCamera() {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+        
+        const video = document.getElementById('cameraVideo');
+        video.srcObject = null;
+        
+        document.getElementById('cameraModal').style.display = 'none';
+    }
+
+    // ====== FUNÇÕES DE COMPRESSÃO ======
+    async function compressBase64ImageFast(base64Image, maxSizeKB = 150) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                // Reduzir tamanho mais agressivamente para ser rápido
+                let width = img.width;
+                let height = img.height;
+                
+                // Reduzir para no máximo 800px na maior dimensão
+                const maxDimension = 800;
+                if (width > maxDimension || height > maxDimension) {
+                    if (width > height) {
+                        height = Math.round((height * maxDimension) / width);
+                        width = maxDimension;
+                    } else {
+                        width = Math.round((width * maxDimension) / height);
+                        height = maxDimension;
+                    }
+                }
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Fundo branco para JPEG
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
+                
+                // Desenhar imagem
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Compressão mais rápida
+                let quality = 0.7;
+                let compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                
+                // Verificar tamanho
+                const sizeKB = Math.round((compressedBase64.length * 3) / 4 / 1024);
+                
+                // Se ainda muito grande, reduzir qualidade mais
+                if (sizeKB > maxSizeKB) {
+                    quality = 0.5;
+                    compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+                }
+                
+                console.log(`Compressão rápida: ${sizeKB}KB com qualidade ${quality}`);
+                resolve(compressedBase64);
+            };
+            
+            img.onerror = () => {
+                // Fallback: imagem original
+                resolve(base64Image);
+            };
+            
+            img.src = base64Image;
+        });
+    }
+
+    async function compressImage(file, maxSizeKB = 100) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    const maxDimension = 1200;
+                    if (width > maxDimension || height > maxDimension) {
+                        if (width > height) {
+                            height = Math.round((height * maxDimension) / width);
+                            width = maxDimension;
+                        } else {
+                            width = Math.round((width * maxDimension) / height);
+                            height = maxDimension;
+                        }
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    let quality = 0.8;
+                    let base64;
+                    
+                    for (let i = 0; i < 5; i++) {
+                        base64 = canvas.toDataURL('image/jpeg', quality);
+                        const sizeKB = (base64.length * 3) / 4 / 1024;
+                        
+                        if (sizeKB <= maxSizeKB || quality <= 0.3) {
+                            break;
+                        }
+                        quality -= 0.15;
+                    }
+                    
+                    if ((base64.length * 3) / 4 / 1024 > maxSizeKB) {
+                        canvas.width = Math.round(width * 0.7);
+                        canvas.height = Math.round(height * 0.7);
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        base64 = canvas.toDataURL('image/jpeg', 0.6);
+                    }
+                    
+                    resolve(base64);
+                };
+                
+                img.onerror = reject;
+            };
+            
+            reader.onerror = reject;
+        });
+    }
+
+    // ====== UPLOAD PARA IMGBB ======
+    async function uploadToImgBB(base64Image) {
+        return new Promise((resolve, reject) => {
+            try {
+                const base64Data = base64Image.includes(',') 
+                    ? base64Image.split(',')[1] 
+                    : base64Image;
+                
+                // Criar timeout para evitar espera infinita
+                const timeout = setTimeout(() => {
+                    reject(new Error('Timeout: Upload muito demorado'));
+                }, 30000);
+                
+                fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `image=${encodeURIComponent(base64Data)}`
+                })
+                .then(response => {
+                    clearTimeout(timeout);
+                    if (!response.ok) {
+                        throw new Error(`Erro HTTP: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.error?.message || 'Falha no upload');
+                    }
+                    resolve({
+                        url: data.data.url,
+                        thumb: data.data.thumb?.url || data.data.url,
+                        deleteUrl: data.data.delete_url
+                    });
+                })
+                .catch(error => {
+                    clearTimeout(timeout);
+                    reject(error);
+                });
+                
+            } catch (error) {
+                reject(new Error('Falha ao preparar upload: ' + error.message));
+            }
+        });
+    }
+
+    // ====== UPLOAD DE IMAGENS ======
+    async function handleImageUpload(event, previewId, storageArray, statusId, statusTextId) {
+        const files = event.target.files;
+        const preview = document.getElementById(previewId);
+        const uploadStatus = document.getElementById(statusId);
+        const statusText = document.getElementById(statusTextId);
+        
+        if (!preview || !files.length) return;
+        
+        if (uploadStatus && statusText) {
+            uploadStatus.style.display = 'block';
+        }
+        
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            
+            if (!file.type.match('image.*')) {
+                showMobileToast('Por favor, selecione apenas imagens (JPG, PNG, etc).', 'error');
+                continue;
+            }
+            
+            if (file.size > 32 * 1024 * 1024) {
+                showMobileToast('Imagem muito grande! Máximo: 32MB', 'error');
+                continue;
+            }
+            
+            try {
+                if (statusText) {
+                    statusText.textContent = `Comprimindo imagem ${i + 1}/${files.length}...`;
+                }
+                
+                const compressedBase64 = await compressImage(file, 100);
+                
+                if (statusText) {
+                    statusText.textContent = `Enviando imagem ${i + 1}/${files.length} para ImgBB...`;
+                }
+                
+                const imgbbResult = await uploadToImgBB(compressedBase64);
+                
+                storageArray.push({
+                    url: imgbbResult.url,
+                    thumb: imgbbResult.thumb,
+                    localPreview: compressedBase64
+                });
+                
+                const index = storageArray.length - 1;
+                preview.innerHTML += `
+                    <div class="photo-wrapper">
+                        <img src="${compressedBase64}" 
+                             class="photo-thumbnail" 
+                             data-index="${index}"
+                             data-url="${imgbbResult.url}"
+                             onclick="visualizarImagemFromArray(${index})"
+                             title="Clique para ampliar">
+                    </div>`;
+                    
+            } catch (error) {
+                console.error('Erro no upload:', error);
+                showMobileToast(`Erro na imagem ${i + 1}: ${error.message}`, 'error');
+                break;
+            }
+        }
+        
+        if (uploadStatus) {
+            uploadStatus.style.display = 'none';
+        }
+        
+        event.target.value = '';
+    }
+
+    // ====== FIRESTORE CRUD ======
+    async function carregarProdutos() {
+        const lista = document.getElementById("lista");
+        const loadError = document.getElementById("loadError");
+        const pagination = document.getElementById("pagination");
+        const pageInfo = document.getElementById("pageInfo");
+        
+        if (!lista) return;
+        
+        try {
+            if (loadError) loadError.style.display = "none";
+            
+            let produtosQuery;
+            
+            if (currentPage === 1) {
+                produtosQuery = query(
+                    collection(db, "produtos"),
+                    orderBy("timestamp", "desc"),
+                    limit(itemsPerPage)
+                );
+                lastVisible = null;
+            } else {
+                produtosQuery = query(
+                    collection(db, "produtos"),
+                    orderBy("timestamp", "desc"),
+                    startAfter(lastVisible),
+                    limit(itemsPerPage)
+                );
+            }
+            
+            const querySnapshot = await getDocs(produtosQuery);
+            
+            if (!querySnapshot.empty) {
+                lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+            }
+            
+            atualizarListaProdutos(querySnapshot);
+            
+            if (pagination && pageInfo) {
+                const totalCount = await getTotalCount();
+                const totalPages = Math.ceil(totalCount / itemsPerPage);
+                
+                if (totalPages > 1) {
+                    pagination.style.display = "block";
+                    pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+                    
+                    const prevPageBtn = document.getElementById("prevPage");
+                    const nextPageBtn = document.getElementById("nextPage");
+                    if (prevPageBtn) prevPageBtn.disabled = currentPage === 1;
+                    if (nextPageBtn) nextPageBtn.disabled = currentPage === totalPages;
+                } else {
+                    pagination.style.display = "none";
+                }
+            }
+            
+        } catch (error) {
+            console.error("Erro ao carregar produtos:", error);
+            if (loadError) {
+                loadError.textContent = "Erro ao carregar produtos: " + error.message;
+                loadError.style.display = "block";
+            }
+        }
+    }
+
+    async function getTotalCount() {
+        const countQuery = query(collection(db, "produtos"));
+        const snapshot = await getCountFromServer(countQuery);
+        return snapshot.data().count;
+    }
+
+    function atualizarListaProdutos(querySnapshot) {
+        const lista = document.getElementById("lista");
+        if (!lista) return;
+        
+        lista.innerHTML = "";
+        
+        if (querySnapshot.empty) {
+            lista.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 40px; color: #6b7280;">Nenhum produto cadastrado</td></tr>';
+            return;
+        }
+        
+        querySnapshot.forEach(doc => {
+            const produto = doc.data();
+            const produtoId = doc.id;
+            const fotoUrlsArray = produto.fotos || [];
+            
+            let fotosHTML = '<div class="photo-container">';
+            if (fotoUrlsArray.length > 0) {
+                fotoUrlsArray.forEach((url, index) => {
+                    fotosHTML += `
+                        <div class="photo-wrapper">
+                            <img src="${url}" 
+                                 class="photo-thumbnail" 
+                                 onclick="visualizarImagemFromList('${produtoId}', ${index})"
+                                 title="Clique para ampliar"
+                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
+                        </div>`;
+                });
+            } else {
+                fotosHTML += '<span style="color: #6b7280; font-size: 14px;">Sem fotos</span>';
+            }
+            fotosHTML += '</div>';
+            
+            lista.innerHTML += `
+                <tr id="produto-${produtoId}">
+                    <td><strong>${produto.numero || ''}</strong></td>
+                    <td>${produto.equipamento || ''}</td>
+                    <td>${produto.modelo || '-'}</td>
+                    <td>${produto.setor || ''}</td>
+                    <td>${fotosHTML}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn-history btn-sm" onclick="abrirModalHistorico('${produtoId}', '${produto.numero || ''} - ${produto.equipamento || ''}')">📋</button>
+                            <button class="btn-edit btn-sm" onclick="editarProduto('${produtoId}')">✏️</button>
+                            <button class="btn-delete btn-sm" onclick="confirmarExclusao('${produtoId}', '${produto.numero || ''}')">🗑️</button>
+                        </div>
+                    </td>
+                </tr>`;
+        });
+    }
+
+    async function buscarProdutos(termo) {
+        const lista = document.getElementById("lista");
+        const loadError = document.getElementById("loadError");
+        const pagination = document.getElementById("pagination");
+        
+        if (!lista) return;
+        
+        if (!termo || termo.trim() === "") {
+            carregarProdutos();
+            return;
+        }
+        
+        try {
+            if (loadError) loadError.style.display = "none";
+            if (pagination) pagination.style.display = "none";
+            
+            const produtosQuery = query(
+                collection(db, "produtos"),
+                or(
+                    where("numero", ">=", termo),
+                    where("numero", "<=", termo + "\uf8ff"),
+                    where("equipamento", ">=", termo),
+                    where("equipamento", "<=", termo + "\uf8ff"),
+                    where("modelo", ">=", termo),
+                    where("modelo", "<=", termo + "\uf8ff"),
+                    where("setor", ">=", termo),
+                    where("setor", "<=", termo + "\uf8ff")
+                )
+            );
+            
+            const querySnapshot = await getDocs(produtosQuery);
+            atualizarListaProdutos(querySnapshot);
+            
+        } catch (error) {
+            console.error("Erro na busca:", error);
+            if (loadError) {
+                loadError.textContent = "Erro na busca: " + error.message;
+                loadError.style.display = "block";
+            }
+        }
+    }
+
+    async function proximaPagina() {
+        currentPage++;
+        await carregarProdutos();
+    }
+
+    async function paginaAnterior() {
+        if (currentPage > 1) {
+            currentPage--;
+            await carregarProdutos();
+        }
+    }
+
+    // ====== SALVAR NOVO PRODUTO ======
     async function salvarProduto() {
         const numero = document.getElementById("numero");
         const equipamento = document.getElementById("equipamento");
@@ -1356,6 +1969,7 @@
         const modelo = document.getElementById("modelo");
         const configuracao = document.getElementById("configuracao");
         const historicoInicial = document.getElementById("historico");
+        const preview = document.getElementById("preview");
         const saveError = document.getElementById("saveError");
         const uploadStatus = document.getElementById("uploadStatus");
         
@@ -1423,7 +2037,6 @@
             configuracao.value = "";
             historicoInicial.value = "";
             fotoBase64 = [];
-            const preview = document.getElementById("preview");
             if (preview) preview.innerHTML = "";
             document.getElementById("photoUpload").value = "";
             
@@ -1440,6 +2053,67 @@
                 saveError.style.display = "block";
             }
             showMobileToast("❌ Erro ao salvar produto: " + error.message, "error");
+        }
+    }
+
+    // ====== EDIÇÃO DE PRODUTOS ======
+    function abrirModalEdicao(produtoId, produto) {
+        currentProductId = produtoId;
+        
+        document.getElementById("editNumero").value = produto.numero || "";
+        document.getElementById("editEquipamento").value = produto.equipamento || "";
+        document.getElementById("editSetor").value = produto.setor || "";
+        document.getElementById("editModelo").value = produto.modelo || "";
+        document.getElementById("editConfiguracao").value = produto.configuracao || "";
+        
+        const editCurrentPhotos = document.getElementById("editCurrentPhotos");
+        editCurrentPhotos.innerHTML = "<label>📸 Fotos atuais</label>";
+        
+        if (produto.fotos && produto.fotos.length > 0) {
+            editCurrentPhotos.innerHTML += '<div class="photo-container">';
+            produto.fotos.forEach((url, index) => {
+                editCurrentPhotos.innerHTML += `
+                    <div class="photo-wrapper">
+                        <img src="${url}" 
+                             class="photo-thumbnail" 
+                             onclick="visualizarImagemModalComTodas([${produto.fotos.map(f => `'${f}'`).join(',')}], ${index})"
+                             title="Clique para ampliar"
+                             onerror="this.onerror=null; this.src='https://via.placeholder.com/70?text=Imagem'">
+                    </div>`;
+            });
+            editCurrentPhotos.innerHTML += '</div>';
+        } else {
+            editCurrentPhotos.innerHTML += '<div class="photo-container"><span style="color: #6b7280;">Nenhuma foto</span></div>';
+        }
+        
+        editFotoBase64 = [];
+        document.getElementById("editPreview").innerHTML = "";
+        document.getElementById("editPhotoUpload").value = "";
+        
+        document.getElementById("editModal").style.display = "flex";
+    }
+
+    function fecharModalEdicao() {
+        document.getElementById("editModal").style.display = "none";
+        currentProductId = null;
+        editFotoBase64 = [];
+        document.getElementById("editPreview").innerHTML = "";
+        const editError = document.getElementById("editError");
+        if (editError) editError.style.display = "none";
+    }
+
+    async function editarProduto(produtoId) {
+        try {
+            const produtoRef = doc(db, "produtos", produtoId);
+            const produtoDoc = await getDoc(produtoRef);
+            
+            if (produtoDoc.exists()) {
+                const produto = produtoDoc.data();
+                abrirModalEdicao(produtoId, produto);
+            }
+        } catch (error) {
+            console.error("Erro ao buscar produto para edição:", error);
+            showMobileToast("Erro ao carregar produto para edição: " + error.message, "error");
         }
     }
 
@@ -1513,6 +2187,67 @@
         }
     }
 
+    // ====== HISTÓRICO DE MANUTENÇÃO ======
+    async function abrirModalHistorico(produtoId, produtoNome) {
+        currentHistoryProductId = produtoId;
+        
+        document.getElementById("historyProductTitle").textContent = produtoNome;
+        document.getElementById("newHistoryEntry").value = "";
+        
+        await carregarHistorico(produtoId);
+        document.getElementById("historyModal").style.display = "flex";
+    }
+
+    function fecharModalHistorico() {
+        document.getElementById("historyModal").style.display = "none";
+        currentHistoryProductId = null;
+    }
+
+    async function carregarHistorico(produtoId) {
+        const historyList = document.getElementById("historyList");
+        
+        try {
+            const produtoRef = doc(db, "produtos", produtoId);
+            const produtoDoc = await getDoc(produtoRef);
+            
+            if (produtoDoc.exists()) {
+                const produto = produtoDoc.data();
+                const historico = produto.historico || [];
+                
+                if (historico.length === 0) {
+                    historyList.innerHTML = '<p style="text-align:center;color:#666">Nenhuma entrada no histórico</p>';
+                    return;
+                }
+                
+                historico.sort((a, b) => new Date(b.data) - new Date(a.data));
+                
+                let html = '';
+                historico.forEach(entry => {
+                    const date = new Date(entry.data).toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    html += `
+                        <div class="history-item" style="background: #f8fafc; border-left: 4px solid #2563eb; padding: 10px; margin: 5px 0; border-radius: 4px;">
+                            <div class="history-date" style="font-weight: bold; color: #374151; font-size: 14px;">${date}</div>
+                            <div class="history-text" style="color: #4b5563; margin-top: 5px;">${entry.texto}</div>
+                            <div class="history-author" style="font-size: 12px; color: #6b7280; text-align: right; margin-top: 5px;">Registrado por: ${entry.autor || 'Sistema'}</div>
+                        </div>
+                    `;
+                });
+                
+                historyList.innerHTML = html;
+            }
+        } catch (error) {
+            console.error("Erro ao carregar histórico:", error);
+            historyList.innerHTML = '<p style="color:red">Erro ao carregar histórico</p>';
+        }
+    }
+
     async function adicionarEntradaHistorico() {
         const newHistoryEntry = document.getElementById("newHistoryEntry");
         const texto = newHistoryEntry.value.trim();
@@ -1551,6 +2286,7 @@
         }
     }
 
+    // ====== EXCLUSÃO ======
     async function confirmarExclusao(produtoId, numero) {
         if (confirm("Tem certeza que deseja excluir o patrimônio " + numero + "? Esta ação não pode ser desfeita.")) {
             try {
@@ -1561,6 +2297,162 @@
                 showMobileToast("❌ Erro ao excluir produto: " + error.message, "error");
             }
         }
+    }
+
+    async function excluirProduto(produtoId) {
+        try {
+            await deleteDoc(doc(db, "produtos", produtoId));
+            
+            const elemento = document.getElementById("produto-" + produtoId);
+            if (elemento) {
+                elemento.remove();
+            }
+            
+            const lista = document.getElementById("lista");
+            if (lista && lista.children.length === 1) {
+                carregarProdutos();
+            }
+            
+        } catch (error) {
+            console.error("Erro ao excluir produto:", error);
+            throw error;
+        }
+    }
+
+    // ====== VISUALIZAÇÃO DE IMAGENS ======
+    function visualizarImagemFromArray(index) {
+        if (!fotoBase64[index]) return;
+        const url = fotoBase64[index].url || fotoBase64[index].localPreview;
+        visualizarImagemModalComTodas([url], 0);
+    }
+
+    function visualizarImagemFromList(produtoId, index) {
+        const container = document.querySelector(`#produto-${produtoId} .photo-container`);
+        if (!container) return;
+        
+        const images = container.querySelectorAll('img');
+        const imageUrls = [];
+        images.forEach(img => {
+            imageUrls.push(img.src);
+        });
+        
+        visualizarImagemModalComTodas(imageUrls, index);
+    }
+
+    function visualizarImagemModalComTodas(imageUrls, startIndex) {
+        currentImages = imageUrls;
+        currentImageIndex = startIndex;
+        
+        const modalImage = document.getElementById("modalImage");
+        const imageCounter = document.getElementById("imageCounter");
+        const imageModal = document.getElementById("imageModal");
+        const prevBtn = document.querySelector('.image-nav.prev');
+        const nextBtn = document.querySelector('.image-nav.next');
+        
+        if (modalImage && imageCounter && imageModal) {
+            modalImage.src = currentImages[currentImageIndex];
+            imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
+            imageModal.style.display = "flex";
+            
+            if (prevBtn && nextBtn) {
+                prevBtn.style.display = currentImages.length > 1 ? 'flex' : 'none';
+                nextBtn.style.display = currentImages.length > 1 ? 'flex' : 'none';
+            }
+        }
+    }
+
+    function navImage(direction) {
+        if (!currentImages || !currentImages.length) return;
+        
+        currentImageIndex += direction;
+        
+        if (currentImageIndex < 0) {
+            currentImageIndex = currentImages.length - 1;
+        } else if (currentImageIndex >= currentImages.length) {
+            currentImageIndex = 0;
+        }
+        
+        const modalImage = document.getElementById("modalImage");
+        const imageCounter = document.getElementById("imageCounter");
+        
+        if (modalImage && imageCounter) {
+            modalImage.src = currentImages[currentImageIndex];
+            imageCounter.textContent = (currentImageIndex + 1) + ' / ' + currentImages.length;
+        }
+    }
+
+    function fecharModalImagem() {
+        const imageModal = document.getElementById("imageModal");
+        if (imageModal) {
+            imageModal.style.display = "none";
+        }
+        currentImages = [];
+        currentImageIndex = 0;
+    }
+
+    // ====== IMPORT/EXPORT EXCEL ======
+    function abrirImportModal() {
+        document.getElementById('importModal').style.display = 'flex';
+        document.getElementById('excelFile').value = '';
+        document.getElementById('importStatus').style.display = 'none';
+        document.getElementById('importSummary').style.display = 'none';
+    }
+
+    function fecharImportModal() {
+        document.getElementById('importModal').style.display = 'none';
+    }
+
+    function baixarModeloExcel(event) {
+        if (event) event.preventDefault();
+        
+        try {
+            const dados = [
+                ['Número', 'Equipamento', 'Setor', 'Modelo', 'Configuração', 'Histórico Inicial'],
+                ['001234', 'Notebook', 'TI', 'Dell Latitude 5420', 'i5-11400H, 16GB RAM, 512GB SSD', '15/01/2024 - Troca de pasta térmica'],
+                ['001235', 'Desktop', 'Administrativo', 'HP ProDesk 400', 'i3-10100, 8GB RAM, 256GB SSD', ''],
+                ['001236', 'Monitor', 'TI', 'Dell P2422H', '24" Full HD, IPS', ''],
+                ['', '', '', '', '', ''],
+                ['INSTRUÇÕES:', '', '', '', '', ''],
+                ['1. Preencha as colunas (as 3 primeiras são obrigatórias)', '', '', '', '', ''],
+                ['2. Deixe em branco se não tiver informação', '', '', '', '', ''],
+                ['3. Salve como arquivo Excel (.xlsx) ou CSV', '', '', '', '', ''],
+                ['4. Importe usando o botão "Importar Excel"', '', '', '', '', '']
+            ];
+            
+            // Criar workbook
+            const wb = XLSX.utils.book_new();
+            
+            // Converter dados para worksheet
+            const ws = XLSX.utils.aoa_to_sheet(dados);
+            
+            // Adicionar worksheet ao workbook
+            XLSX.utils.book_append_sheet(wb, ws, "Modelo Patrimônio TI");
+            
+            // Ajustar largura das colunas
+            const wscols = [
+                {wch: 12}, // Número
+                {wch: 15}, // Equipamento
+                {wch: 15}, // Setor
+                {wch: 20}, // Modelo
+                {wch: 30}, // Configuração
+                {wch: 40}  // Histórico
+            ];
+            ws['!cols'] = wscols;
+            
+            // Gerar nome do arquivo com data
+            const fileName = `modelo_patrimonio_ti.xlsx`;
+            
+            // Escrever arquivo
+            XLSX.writeFile(wb, fileName);
+            
+            showMobileToast('✅ Modelo Excel baixado com sucesso!', 'success');
+            
+        } catch (error) {
+            console.error('Erro ao baixar modelo:', error);
+            showMobileToast('❌ Erro ao baixar modelo. Tente novamente.', 'error');
+        }
+        
+        return false;
     }
 
     async function exportarParaExcel() {
@@ -1739,66 +2631,31 @@
         }
     }
 
-    // ====== SUAS OUTRAS FUNÇÕES ======
-    // COLE AQUI TODAS AS OUTRAS FUNÇÕES DO SEU CÓDIGO ORIGINAL
-    // desde "function baixarModeloExcel()" até o final
-    
-    function baixarModeloExcel(event) {
-        if (event) event.preventDefault();
-        
-        try {
-            const dados = [
-                ['Número', 'Equipamento', 'Setor', 'Modelo', 'Configuração', 'Histórico Inicial'],
-                ['001234', 'Notebook', 'TI', 'Dell Latitude 5420', 'i5-11400H, 16GB RAM, 512GB SSD', '15/01/2024 - Troca de pasta térmica'],
-                ['001235', 'Desktop', 'Administrativo', 'HP ProDesk 400', 'i3-10100, 8GB RAM, 256GB SSD', ''],
-                ['001236', 'Monitor', 'TI', 'Dell P2422H', '24" Full HD, IPS', ''],
-                ['', '', '', '', '', ''],
-                ['INSTRUÇÕES:', '', '', '', '', ''],
-                ['1. Preencha as colunas (as 3 primeiras são obrigatórias)', '', '', '', '', ''],
-                ['2. Deixe em branco se não tiver informação', '', '', '', '', ''],
-                ['3. Salve como arquivo Excel (.xlsx) ou CSV', '', '', '', '', ''],
-                ['4. Importe usando o botão "Importar Excel"', '', '', '', '', '']
-            ];
+    function readExcelFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
             
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(dados);
-            XLSX.utils.book_append_sheet(wb, ws, "Modelo Patrimônio TI");
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+                    resolve(jsonData);
+                } catch (error) {
+                    reject(error);
+                }
+            };
             
-            const wscols = [
-                {wch: 12}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 30}, {wch: 40}
-            ];
-            ws['!cols'] = wscols;
+            reader.onerror = reject;
             
-            const fileName = `modelo_patrimonio_ti.xlsx`;
-            XLSX.writeFile(wb, fileName);
-            
-            showMobileToast('✅ Modelo Excel baixado com sucesso!', 'success');
-            
-        } catch (error) {
-            console.error('Erro ao baixar modelo:', error);
-            showMobileToast('❌ Erro ao baixar modelo. Tente novamente.', 'error');
-        }
-        
-        return false;
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        });
     }
-
-    // ... COLE AQUI TODAS AS SUAS FUNÇÕES RESTANTES ...
-
-    // ====== EXPORTAR FUNÇÕES PARA ESCOPO GLOBAL ======
-    window.editarProduto = editarProduto;
-    window.confirmarExclusao = confirmarExclusao;
-    window.visualizarImagemModalComTodas = visualizarImagemModalComTodas;
-    window.visualizarImagemFromArray = visualizarImagemFromArray;
-    window.visualizarImagemFromList = visualizarImagemFromList;
-    window.navImage = navImage;
-    window.fecharModalImagem = fecharModalImagem;
-    window.abrirModalHistorico = abrirModalHistorico;
-    window.fecharModalHistorico = fecharModalHistorico;
-    window.fecharModalEdicao = fecharModalEdicao;
-    window.fecharCamera = fecharCamera;
-    window.fecharImportModal = fecharImportModal;
-    window.baixarModeloExcel = baixarModeloExcel;
-    window.importarDoExcel = importarDoExcel;
 
     // ====== CONFIGURAÇÃO DE AUTENTICAÇÃO ======
     onAuthStateChanged(auth, user => {
@@ -1830,6 +2687,22 @@
             if (pagination) pagination.style.display = "none";
         }
     });
+
+    // ====== EXPORTAR FUNÇÕES PARA ESCOPO GLOBAL ======
+    window.editarProduto = editarProduto;
+    window.confirmarExclusao = confirmarExclusao;
+    window.visualizarImagemModalComTodas = visualizarImagemModalComTodas;
+    window.visualizarImagemFromArray = visualizarImagemFromArray;
+    window.visualizarImagemFromList = visualizarImagemFromList;
+    window.navImage = navImage;
+    window.fecharModalImagem = fecharModalImagem;
+    window.abrirModalHistorico = abrirModalHistorico;
+    window.fecharModalHistorico = fecharModalHistorico;
+    window.fecharModalEdicao = fecharModalEdicao;
+    window.fecharCamera = fecharCamera;
+    window.fecharImportModal = fecharImportModal;
+    window.baixarModeloExcel = baixarModeloExcel;
+    window.importarDoExcel = importarDoExcel;
 
     </script>
 </body>
